@@ -10,7 +10,7 @@ class EvaluateConfig:
         self.play_config.tau_decay_rate = 0.6 # I need a better distribution...
         self.play_config.noise_eps = 0
         self.evaluate_latest_first = True
-        self.max_game_length = 100 # before: 1000
+        self.max_game_length = 200 # before: 1000
 
 
 class PlayDataConfig:
@@ -24,10 +24,10 @@ class PlayDataConfig:
 
 class PlayConfig:
     def __init__(self):
-        self.max_processes = 3
-        self.search_threads = 16
+        self.max_processes = 10
+        self.search_threads = 20
         self.vram_frac = 1.0
-        self.simulation_num_per_move = 800
+        self.simulation_num_per_move = 600
         self.thinking_loop = 1
         self.logging_thinking = False
         self.c_puct = 1.5
@@ -37,15 +37,16 @@ class PlayConfig:
         self.virtual_loss = 3
         self.resign_threshold = -0.8
         self.min_resign_turn = 5
-        self.max_game_length = 1000
+        self.max_game_length = 200
 
 
 class TrainerConfig:
     def __init__(self):
+        self.min_games_to_begin_learn = 1000
         self.min_data_size_to_learn = 0
-        self.cleaning_processes = 5 # RAM explosion...
+        self.cleaning_processes = 4 # RAM explosion...
         self.vram_frac = 1.0
-        self.batch_size = 384 # tune this to your gpu memory
+        self.batch_size = 1024 # tune this to your gpu memory
         self.epoch_to_checkpoint = 1
         self.dataset_size = 100000
         self.start_total_steps = 0
@@ -62,4 +63,4 @@ class ModelConfig:
     l2_reg = 1e-4
     value_fc_size = 256
     distributed = False
-    input_depth = 18
+    input_depth = 14

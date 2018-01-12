@@ -100,10 +100,10 @@ class EvaluateWorker:
         rc = self.config.resource
         while True:
             dirs = get_next_generation_model_dirs(self.config.resource)
-            if dirs:
+            if dirs and len(dirs) > 0:
                 break
-            logger.info("There is no next generation model to evaluate")
-            sleep(60)
+            logger.info("There is no next generation model to evaluate, waiting for 600s")
+            sleep(600)
         model_dir = dirs[-1] if self.config.eval.evaluate_latest_first else dirs[0]
         config_path = os.path.join(model_dir, rc.next_generation_model_config_filename)
         weight_path = os.path.join(model_dir, rc.next_generation_model_weight_filename)
