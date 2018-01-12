@@ -1,9 +1,12 @@
 About
 =====
 
-Chess reinforcement learning by [AlphaGo Zero](https://deepmind.com/blog/alphago-zero-learning-scratch/) methods.
+Chinese Chess reinforcement learning by [AlphaGo Zero](https://deepmind.com/blog/alphago-zero-learning-scratch/) methods.
 
-This project is based on these main resources:
+This project is modified by
+https://github.com/Zeta36/chess-alpha-zero.git
+
+And is based on these main resources:
 1) DeepMind's Oct 19th publication: [Mastering the Game of Go without Human Knowledge](https://www.nature.com/articles/nature24270.epdf?author_access_token=VJXbVjaSHxFoctQQ4p2k4tRgN0jAjWel9jnR3ZoTv0PVW4gB86EEpGqTRDtpIz-2rmo8-KG06gqVobU5NSCFeHILHcVFUeMsbvwS-lxjqQGg98faovwjxeTUgZAUMnRQ).
 2) The <b>great</b> Reversi development of the DeepMind ideas that @mokemokechicken did in his repo: https://github.com/mokemokechicken/reversi-alpha-zero
 3) DeepMind just released a new version of AlphaGo Zero (named now AlphaZero) where they master chess from scratch: 
@@ -20,31 +23,6 @@ Environment
 * tensorflow-gpu: 1.3.0
 * Keras: 2.0.8
 
-### New results (after a great number of modifications due to @Akababa)
-
-Using supervised learning on about 10k games, I trained a model (7 residual blocks of 256 filters) to a guesstimate of 1200 elo with 1200 sims/move. One of the strengths of MCTS is it scales quite well with computing power.
-
-Here you can see an example where I (black) played against the model in the repo (white):
-
-![img](https://user-images.githubusercontent.com/4205182/34333105-ada817c6-e8fe-11e7-8c01-5958aaf264c1.gif)
-
-Here you can see an example of a game where I (white, ~2000 elo) played against the model in this repo (black):
-
-![img](https://user-images.githubusercontent.com/4205182/34323276-ecd2a7b6-e806-11e7-856a-4e2394bd75df.gif)
-
-### First "good" results
-
-Using the new supervised learning step I created, I've been able to train a model to the point that seems to be learning the openings of chess. Also it seems the model starts to avoid losing naively pieces.
-
-Here you can see an example of a game played for me against this model (AI plays black):
-
-![partida1](https://user-images.githubusercontent.com/17341905/33597844-ea53c8ae-d9a0-11e7-8564-4b9b0f35a221.gif)
-
-Here we have a game trained by @bame55 (AI plays white):
-
-![partida3](https://user-images.githubusercontent.com/17341905/34030278-8796f7c6-e16c-11e7-9ba4-97af15f2cde5.gif)
-
-This model plays in this way after only 5 epoch iterations of the 'opt' worker, the 'eval' worker changed 4 times the best model (4 of 5). At this moment the loss of the 'opt' worker is 5.1 (and still seems to be converging very well).
 
 Modules
 -------
@@ -88,11 +66,8 @@ python src/chess_zero/run.py eval --type distributed
 ```
 
 ### GUI
-* `uci` launches the Universal Chess Interface, for use in a GUI.
 
-To set up ChessZero with a GUI, point it to `C0uci.bat` (or rename to .sh).
-For example, this is screenshot of the random model using Arena's self-play feature:
-![capture](https://user-images.githubusercontent.com/4205182/34057277-e9c99118-e19b-11e7-91ee-dd717f7efe9d.PNG)
+The GUI part is commented 
 
 Data
 -----
@@ -103,6 +78,7 @@ Data
 * `logs/main.log`: log file.
   
 If you want to train the model from the beginning, delete the above directories.
+
 
 How to use
 ==========
@@ -127,6 +103,7 @@ Basic Usage
 ------------
 
 For training model, execute `Self-Play`, `Trainer` and `Evaluator`. 
+REMINDER: You should type commands in three times to run them all. Or you can run them seperately.
 
 
 Self-Play
