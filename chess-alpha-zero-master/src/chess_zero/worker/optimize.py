@@ -53,7 +53,7 @@ class OptimizeWorker:
                 self.filenames = deque(files)
                 shuffle(self.filenames)
                 self.fill_queue()
-                if len(self.dataset[0]) > self.trainer.batch_size:
+                if len(self.dataset[0]) > self.config.trainer.batch_size:
                     steps = self.train_epoch(self.config.trainer.epoch_to_checkpoint)
                     total_steps += steps
                     self.save_current_model()

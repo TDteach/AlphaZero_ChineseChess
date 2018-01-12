@@ -53,6 +53,7 @@ class SelfPlayWorker:
                     need_to_renew_model = False
                     if (game_idx > 1):
                         self.remove_play_data(all=True)
+                    game_idx = 1
 
                 env, data = futures.popleft().result()
 
