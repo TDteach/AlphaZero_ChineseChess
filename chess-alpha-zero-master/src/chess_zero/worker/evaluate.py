@@ -88,7 +88,7 @@ class EvaluateWorker:
 
     def move_model(self, model_dir):
         rc = self.config.resource
-        new_dir = os.path.join(rc.next_generation_model_dir, "copies", model_dir.name)
+        new_dir = os.path.join(rc.next_generation_model_dir, "copies", model_dir)
         os.rename(model_dir, new_dir)
 
     def load_current_model(self):

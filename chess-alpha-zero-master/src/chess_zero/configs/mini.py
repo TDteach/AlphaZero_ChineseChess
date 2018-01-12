@@ -25,9 +25,9 @@ class PlayDataConfig:
 class PlayConfig:
     def __init__(self):
         self.max_processes = 2 #before 3
-        self.search_threads = 8 #before 16
+        self.search_threads = 4 #before 16
         self.vram_frac = 1.0
-        self.simulation_num_per_move = 100 # before 1000
+        self.simulation_num_per_move = 300 # before 1000
         self.thinking_loop = 1
         self.logging_thinking = False
         self.c_puct = 1.5
@@ -42,8 +42,9 @@ class PlayConfig:
 
 class TrainerConfig:
     def __init__(self):
+        self.min_games_to_begin_learn = 1000
         self.min_data_size_to_learn = 0
-        self.cleaning_processes = 5 # RAM explosion...
+        self.cleaning_processes = 2 # before: 5 # RAM explosion...
         self.vram_frac = 1.0
         self.batch_size = 64 #before: 256 # tune this to your gpu memory
         self.epoch_to_checkpoint = 1

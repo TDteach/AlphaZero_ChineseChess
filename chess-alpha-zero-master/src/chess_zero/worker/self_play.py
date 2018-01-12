@@ -38,7 +38,7 @@ class SelfPlayWorker:
 
         futures = deque()
         with ProcessPoolExecutor(max_workers=self.config.play.max_processes) as executor:
-            for game_idx in range(self.config.play.max_processes * 2):
+            for i in range(self.config.play.max_processes):
                 futures.append(executor.submit(self_play_buffer, self.config, cur=self.cur_pipes))
             game_idx = 0
             while True:
@@ -60,7 +60,10 @@ class SelfPlayWorker:
                 self.buffer += data
                 if (game_idx % self.config.play_data.nb_game_in_file) == 0:
                     self.flush_buffer()
-                    reload_best_model_weight_if_changed(self.current_model)
+                    if reload_best_model_weight_if_changed(self.current_model):
+                        self.remove_play_data(all=True)
+                    else:
+                        self.remove_play_data(all=False)
                 futures.append(executor.submit(self_play_buffer, self.config, cur=self.cur_pipes)) # Keep it going
 
         if len(data) > 0:
@@ -82,12 +85,16 @@ class SelfPlayWorker:
         thread.start()
         self.buffer = []
 
-    def remove_play_data(self):
+    def remove_play_data(self,all=False):
         files = get_game_data_filenames(self.config.resource)
-        if len(files) < self.config.play_data.max_file_num:
-            return
-        for i in range(len(files) - self.config.play_data.max_file_num):
-            os.remove(files[i])
+        if (all):
+            for path in files:
+                os.remove(path)
+        else:
+            if len(files) < self.config.play_data.max_file_num:
+                return
+            for i in range(len(files) - self.config.play_data.max_file_num):
+                os.remove(files[i])
 
 
 def self_play_buffer(config, cur) -> (ChessEnv, list):

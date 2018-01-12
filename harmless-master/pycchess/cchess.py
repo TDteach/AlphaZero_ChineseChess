@@ -306,7 +306,7 @@ def runGame():
         if len(replay) > 2:
             replay = replay[1:]
         else:
-            #raw_input('next game type enter:')
+            raw_input('next game type enter:')
             newGame()
             random_select_replay()
 
@@ -320,7 +320,7 @@ try:
         step = step+1
         print 'STEP '+str(step)+':'
         runGame()
-        #raw_input('pause')
-        #time.sleep(1)
+        time.sleep(1)
+        raw_input('pause')
 except KeyboardInterrupt:
     quitGame()

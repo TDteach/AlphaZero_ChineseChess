@@ -1,5 +1,6 @@
 *.o
 *.pyc
+*.swp
 harmless
 harmless.log
 src/BOOK.DAT

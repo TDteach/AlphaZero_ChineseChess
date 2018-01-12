@@ -18,6 +18,7 @@ from keras.optimizers import Adam
 from keras.callbacks import TensorBoard
 logger = getLogger(__name__)
 
+import time
 
 def start(config: Config):
     return OptimizeWorker(config).start()
@@ -31,6 +32,7 @@ class OptimizeWorker:
         self.loaded_data = deque(maxlen=self.config.trainer.dataset_size) # this should just be a ring buffer i.e. queue of length 500,000 in AZ
         self.dataset = deque(),deque(),deque()
         self.executor = ProcessPoolExecutor(max_workers=config.trainer.cleaning_processes)
+        self.filenames = []
 
     def start(self):
         self.model = self.load_model()
@@ -38,20 +40,26 @@ class OptimizeWorker:
 
     def training(self):
         self.compile_model()
-        self.filenames = deque(get_game_data_filenames(self.config.resource))
-        shuffle(self.filenames)
+
         total_steps = self.config.trainer.start_total_steps
 
         while True:
-            self.fill_queue()
-            steps = self.train_epoch(self.config.trainer.epoch_to_checkpoint)
-            total_steps += steps
-            self.save_current_model()
-            a, b, c = self.dataset
-            while len(a) > self.config.trainer.dataset_size/2:
-                a.popleft()
-                b.popleft()
-                c.popleft()
+            files = get_game_data_filenames(self.config.resource)
+            if (len(files)*self.config.play_data.nb_game_in_file < self.config.trainer.min_games_to_begin_learn):
+                time.sleep(60)
+                continue
+            else:
+                self.filenames = deque(files)
+                shuffle(self.filenames)
+                self.fill_queue()
+                steps = self.train_epoch(self.config.trainer.epoch_to_checkpoint)
+                total_steps += steps
+                self.save_current_model()
+                a, b, c = self.dataset
+                while len(a) > self.config.trainer.dataset_size/2:
+                    a.popleft()
+                    b.popleft()
+                    c.popleft()
 
     def train_epoch(self, epochs):
         tc = self.config.trainer
@@ -89,7 +97,7 @@ class OptimizeWorker:
                 filename = self.filenames.popleft()
                 logger.debug("loading data from %s" % (filename))
                 futures.append(executor.submit(load_data_from_file,filename))
-            while futures and len(self.dataset[0]) < self.config.trainer.dataset_size:
+            while futures and len(self.dataset[0]) < self.config.trainer.dataset_size: #fill tuples
                 for x,y in zip(self.dataset,futures.popleft().result()):
                     x.extend(y)
                 if len(self.filenames) > 0:
