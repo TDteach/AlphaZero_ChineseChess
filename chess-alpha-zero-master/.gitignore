@@ -1,7 +1,6 @@
 .idea
 .python-version
 *.mdl
-*.png
 *.pyc
 __pycache__
 .DS_Store
