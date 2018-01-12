@@ -101,6 +101,7 @@ class EvaluateWorker:
         rc = self.config.resource
         while True:
             dirs = get_next_generation_model_dirs(self.config.resource)
+
             i = -1
             if dirs is not None:
                 i = len(dirs)-1
@@ -115,6 +116,7 @@ class EvaluateWorker:
             logger.info("There is no next generation model to evaluate, waiting for 60s")
             sleep(60)
         model_dir = self.model_list.pop()
+
         config_path = os.path.join(model_dir, rc.next_generation_model_config_filename)
         weight_path = os.path.join(model_dir, rc.next_generation_model_weight_filename)
         model = ChessModel(self.config)
