@@ -8,7 +8,7 @@ from chess_zero.agent.model_chess import ChessModel
 from chess_zero.agent.player_chess import ChessPlayer
 from chess_zero.config import Config
 from chess_zero.env.chess_env import ChessEnv, Winner
-from chess_zero.lib.data_helper import get_next_generation_model_dirs, pretty_print
+from chess_zero.lib.data_helper import get_next_generation_model_dirs
 from chess_zero.lib.model_helper import save_as_best_model, load_best_model_weight
 
 logger = getLogger(__name__)
@@ -31,10 +31,10 @@ class EvaluateWorker:
     def start(self):
         while True:
             ng_model, model_dir = self.load_next_generation_model()
-            logger.debug(f"start evaluate model {model_dir}")
+            logger.debug("start evaluate model %s" % (model_dir))
             ng_is_great = self.evaluate_model(ng_model)
             if ng_is_great:
-                logger.debug(f"New Model become best model: {model_dir}")
+                logger.debug("New Model become best model: %s" % (model_dir))
                 save_as_best_model(ng_model)
                 self.current_model = ng_model
             self.move_model(model_dir)
@@ -55,25 +55,35 @@ class EvaluateWorker:
                 results.append(ng_score)
                 win_rate = sum(results) / len(results)
                 game_idx = len(results)
-                logger.debug(f"game {game_idx:3}: ng_score={ng_score:.1f} as {'black' if current_white else 'white'} "
-                             f"{'by resign ' if env.resigned else '          '}"
-                             f"win_rate={win_rate*100:5.1f}% "
-                             f"{env.board.fen().split(' ')[0]}")
+
+                if (current_white):
+                    player = 'red'
+                else:
+                    player = 'black'
+                if (env.resigned):
+                    resigned = 'by resign '
+                else:
+                    resigned = '          '
+
+                logger.debug("game %3d: ng_score=%.1f as %s "
+                             "%s"
+                             "%5.1f\n"
+                             "%s" % (game_idx, ng_score, player, resigned, win_rate, env.board.fen().split(' ')[0]))
 
                 colors = ("current_model", "ng_model")
                 if not current_white:
                     colors = reversed(colors)
-                pretty_print(env, colors)
+                # (env, colors)
 
                 if len(results)-sum(results) >= self.config.eval.game_num * (1-self.config.eval.replace_rate):
-                    logger.debug(f"lose count reach {results.count(0)} so give up challenge")
+                    logger.debug("lose count reach %d so give up challenge" % (results.count(0)))
                     return False
                 if sum(results) >= self.config.eval.game_num * self.config.eval.replace_rate:
-                    logger.debug(f"win count reach {results.count(1)} so change best model")
+                    logger.debug("win count reach %d so change best model" % (results.count(1)))
                     return True
 
         win_rate = sum(results) / len(results)
-        logger.debug(f"winning rate {win_rate*100:.1f}%")
+        logger.debug("winning rate %.1f" % win_rate*100)
         return win_rate >= self.config.eval.replace_rate
 
     def move_model(self, model_dir):

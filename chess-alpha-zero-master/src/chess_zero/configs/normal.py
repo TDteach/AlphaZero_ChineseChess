@@ -10,7 +10,7 @@ class EvaluateConfig:
         self.play_config.tau_decay_rate = 0.6 # I need a better distribution...
         self.play_config.noise_eps = 0
         self.evaluate_latest_first = True
-        self.max_game_length = 1000
+        self.max_game_length = 100 # before: 1000
 
 
 class PlayDataConfig:

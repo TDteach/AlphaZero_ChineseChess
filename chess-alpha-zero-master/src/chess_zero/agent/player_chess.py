@@ -3,11 +3,13 @@ from concurrent.futures import ThreadPoolExecutor
 from logging import getLogger
 from threading import Lock
 
-import chess
+# import chess
 import numpy as np
 
 from chess_zero.config import Config
 from chess_zero.env.chess_env import ChessEnv, Winner
+from chess_zero.cchess.common import Move
+from chess_zero.cchess.chessboard import Chessboard
 
 logger = getLogger(__name__)
 
@@ -35,7 +37,8 @@ class ChessPlayer:
         self.play_config = play_config or self.config.play
         self.labels_n = config.n_labels
         self.labels = config.labels
-        self.move_lookup = {chess.Move.from_uci(move): i for move, i in zip(self.labels, range(self.labels_n))}
+        # self.move_lookup = {Move.from_uci(move): i for move, i in zip(self.labels, range(self.labels_n))}
+        self.move_lookup = {move: i for move, i in zip(self.labels, range(self.labels_n))}
         if dummy:
             return
 
@@ -58,11 +61,16 @@ class ChessPlayer:
         a = stats[stats[:,0].argsort()[::-1]]
 
         for s in a:
-            print(f'{self.labels[int(s[4])]:5}: '
-                  f'n: {s[0]:3.0f} '
-                  f'w: {s[1]:7.3f} '
-                  f'q: {s[2]:7.3f} '
-                  f'p: {s[3]:7.5f}')
+            # print(f'{self.labels[int(s[4])]:5}: '
+            #       f'n: {s[0]:3.0f} '
+            #       f'w: {s[1]:7.3f} '
+            #       f'q: {s[2]:7.3f} '
+            #       f'p: {s[3]:7.5f}')
+            print('%5d:' % (self.labels[int(s[4])]))
+            print('%3.0f:' % (s[0]))
+            print('%7.3f:' % (s[1]))
+            print('%7.3f:' % (s[2]))
+            print('%7.5f:' % (s[3]))
 
     def action(self, env, can_stop = True) -> str:
         self.reset()
@@ -124,7 +132,9 @@ class ChessPlayer:
             my_stats.w += -virtual_loss
             my_stats.q = my_stats.w / my_stats.n
 
-        env.step(action_t.uci())
+        # env.step(action_t.uci())
+        env.step(action_t)
+
         leaf_v = self.search_my_move(env)  # next move from enemy POV
         leaf_v = -leaf_v
 
@@ -162,7 +172,7 @@ class ChessPlayer:
         return ret
 
     #@profile
-    def select_action_q_and_u(self, env, is_root_node) -> chess.Move:
+    def select_action_q_and_u(self, env, is_root_node) -> Move:
         # this method is called with state locked
         state = state_key(env)
 
@@ -228,7 +238,7 @@ class ChessPlayer:
     def sl_action(self, observation, my_action, weight=1):
         policy = np.zeros(self.labels_n)
 
-        k = self.move_lookup[chess.Move.from_uci(my_action)]
+        k = self.move_lookup[Move.from_uci(my_action)]
         policy[k] = weight
 
         self.moves.append([observation, list(policy)])

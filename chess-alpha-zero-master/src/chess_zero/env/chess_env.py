@@ -1,5 +1,7 @@
 import enum
-import chess.pgn
+# import chess.pgn
+from chess_zero.cchess.chessboard import Chessboard
+from chess_zero.cchess.common import *
 import numpy as np
 import copy
 
@@ -12,12 +14,9 @@ Winner = enum.Enum("Winner", "black white draw")
 
 # input planes
 # noinspection SpellCheckingInspection
-pieces_order = 'KQRBNPkqrbnp' # 12x8x8
-castling_order = 'KQkq'       # 4x8x8
-# fifty-move-rule             # 1x8x8
-# en en_passant               # 1x8x8
+pieces_order = 'KABNRCPkabnrcp' # 14x10x9
 
-ind = {pieces_order[i]: i for i in range(12)}
+ind = {pieces_order[i]: i for i in range(14)}
 
 
 class ChessEnv:
@@ -30,14 +29,15 @@ class ChessEnv:
         self.result = None
 
     def reset(self):
-        self.board = chess.Board()
+        # self.board = chess.Board()
+        self.board = Chessboard()
         self.num_halfmoves = 0
         self.winner = None
         self.resigned = False
         return self
 
     def update(self, board):
-        self.board = chess.Board(board)
+        self.board = Chessboard(board)
         self.winner = None
         self.resigned = False
         return self
@@ -52,7 +52,7 @@ class ChessEnv:
 
     @property
     def white_to_move(self):
-        return self.board.turn == chess.WHITE
+        return self.board.turn == RED
 
     def step(self, action: str, check_over = True):
         """
@@ -73,7 +73,7 @@ class ChessEnv:
 
     def _game_over(self):
         if self.winner is None:
-            self.result = self.board.result(claim_draw = True)
+            self.result = self.board.result(claim_draw=True)
             if self.result == '1-0':
                 self.winner = Winner.white
             elif self.result == '0-1':
@@ -107,8 +107,8 @@ class ChessEnv:
         self.result = "1/2-1/2"
 
     def copy(self):
-        env = copy.copy(self)
-        env.board = copy.copy(self.board)
+        env = copy.deepcopy(self)
+        # env.board = copy.deepcopy(self.board)
         return env
 
     def render(self):
@@ -141,19 +141,19 @@ class ChessEnv:
 
 
 def testeval(fen, absolute = False) -> float:
-    piece_vals = {'K': 3, 'Q': 14, 'R': 5, 'B': 3.25, 'N': 3, 'P': 1} # somehow it doesn't know how to keep its queen
+    piece_vals = {'r': 14, 'n': 7, 'b': 3, 'a': 2, 'k':1, 'c': 5, 'p': 1} # for RED account
     ans = 0.0
     tot = 0
     for c in fen.split(' ')[0]:
         if not c.isalpha():
             continue
 
-        if c.isupper():
+        if c.islower():
             ans += piece_vals[c]
             tot += piece_vals[c]
         else:
-            ans -= piece_vals[c.upper()]
-            tot += piece_vals[c.upper()]
+            ans -= piece_vals[c.lower()]
+            tot += piece_vals[c.lower()]
     v = ans/tot
     if not absolute and is_black_turn(fen):
         v = -v
@@ -206,12 +206,13 @@ def canon_input_planes(fen):
 
 
 def all_input_planes(fen):
-    current_aux_planes = aux_planes(fen)
+    # current_aux_planes = aux_planes(fen)
 
     history_both = to_planes(fen)
 
-    ret = np.vstack((history_both, current_aux_planes))
-    assert ret.shape == (18, 8, 8)
+    # ret = np.vstack((history_both, current_aux_planes))
+    ret = history_both
+    assert ret.shape == (14, 10, 9)
     return ret
 
 
@@ -226,34 +227,36 @@ def maybe_flip_fen(fen, flip = False):
         return a
     def swapall(aa):
         return "".join([swapcase(a) for a in aa])
+
+    # before: "".join(sorted(swapall(foo[2]))) instead of foo[2]
     return "/".join([swapall(row) for row in reversed(rows)]) \
-        + " " + ('w' if foo[1] == 'b' else 'b') \
-        + " " + "".join(sorted(swapall(foo[2]))) \
+        + " " + ('r' if foo[1] == 'b' else 'b') \
+        + " " + foo[2] \
         + " " + foo[3] + " " + foo[4] + " " + foo[5]
 
 
-def aux_planes(fen):
-    foo = fen.split(' ')
-
-    en_passant = np.zeros((8, 8), dtype=np.float32)
-    if foo[3] != '-':
-        eps = alg_to_coord(foo[3])
-        en_passant[eps[0]][eps[1]] = 1
-
-    fifty_move_count = int(foo[4])
-    fifty_move = np.full((8, 8), fifty_move_count, dtype=np.float32)
-
-    castling = foo[2]
-    auxiliary_planes = [np.full((8, 8), int('K' in castling), dtype=np.float32),
-                        np.full((8, 8), int('Q' in castling), dtype=np.float32),
-                        np.full((8, 8), int('k' in castling), dtype=np.float32),
-                        np.full((8, 8), int('q' in castling), dtype=np.float32),
-                        fifty_move,
-                        en_passant]
-
-    ret = np.asarray(auxiliary_planes, dtype=np.float32)
-    assert ret.shape == (6, 8, 8)
-    return ret
+# def aux_planes(fen):
+#     foo = fen.split(' ')
+#
+#     en_passant = np.zeros((8, 8), dtype=np.float32)
+#     if foo[3] != '-':
+#         eps = alg_to_coord(foo[3])
+#         en_passant[eps[0]][eps[1]] = 1
+#
+#     fifty_move_count = int(foo[4])
+#     fifty_move = np.full((8, 8), fifty_move_count, dtype=np.float32)
+#
+#     castling = foo[2]
+#     auxiliary_planes = [np.full((8, 8), int('K' in castling), dtype=np.float32),
+#                         np.full((8, 8), int('Q' in castling), dtype=np.float32),
+#                         np.full((8, 8), int('k' in castling), dtype=np.float32),
+#                         np.full((8, 8), int('q' in castling), dtype=np.float32),
+#                         fifty_move,
+#                         en_passant]
+#
+#     ret = np.asarray(auxiliary_planes, dtype=np.float32)
+#     assert ret.shape == (6, 8, 8)
+#     return ret
 
 # FEN board is like this:
 # a8 b8 .. h8
@@ -276,26 +279,26 @@ def aux_planes(fen):
 
 
 def alg_to_coord(alg):
-    rank = 8 - int(alg[1])        # 0-7
-    file = ord(alg[0]) - ord('a') # 0-7
+    rank = 9 - int(alg[1])        # 0-9
+    file = ord(alg[0]) - ord('a') # a-i
     return rank, file
 
 
 def coord_to_alg(coord):
     letter = chr(ord('a') + coord[1])
-    number = str(8 - coord[0])
+    number = str(9 - coord[0])
     return letter + number
 
 
 def to_planes(fen):
     board_state = replace_tags_board(fen)
-    pieces_both = np.zeros(shape=(12, 8, 8), dtype=np.float32)
-    for rank in range(8):
-        for file in range(8):
-            v = board_state[rank * 8 + file]
+    pieces_both = np.zeros(shape=(14, 10, 9), dtype=np.float32)
+    for rank in range(10):
+        for file in range(9):
+            v = board_state[rank * 9 + file]
             if v.isalpha():
                 pieces_both[ind[v]][rank][file] = 1
-    assert pieces_both.shape == (12, 8, 8)
+    assert pieces_both.shape == (14, 10, 9)
     return pieces_both
 
 
@@ -308,6 +311,7 @@ def replace_tags_board(board_san):
     board_san = board_san.replace("6", "111111")
     board_san = board_san.replace("7", "1111111")
     board_san = board_san.replace("8", "11111111")
+    board_san = board_san.replace("9", "111111111")
     return board_san.replace("/", "")
 
 

@@ -4,6 +4,12 @@ import json
 import os
 from logging import getLogger
 
+
+import tensorflow as tf
+config = tf.ConfigProto()
+config.gpu_options.allow_growth = True
+session = tf.Session(config=config)
+
 from keras.engine.topology import Input
 from keras.engine.training import Model
 from keras.layers.convolutional import Conv2D
@@ -35,7 +41,8 @@ class ChessModel:
 
     def build(self):
         mc = self.config.model
-        in_x = x = Input((18, 8, 8))
+        # in_x = x = Input((18, 8, 8))
+        in_x = x = Input((14,10,9)) # change to CC
 
         # (batch, channels, height, width)
         x = Conv2D(filters=mc.cnn_filter_num, kernel_size=mc.cnn_first_filter_size, padding="same",
@@ -110,25 +117,25 @@ class ChessModel:
             except:
                 pass
         if os.path.exists(config_path) and os.path.exists(weight_path):
-            logger.debug(f"loading model from {config_path}")
+            logger.debug("loading model from %s" % (config_path))
             with open(config_path, "rt") as f:
                 self.model = Model.from_config(json.load(f))
             self.model.load_weights(weight_path)
             self.model._make_predict_function()
             self.digest = self.fetch_digest(weight_path)
-            logger.debug(f"loaded model digest = {self.digest}")
+            logger.debug("loaded model digest = %s" % (self.digest))
             return True
         else:
-            logger.debug(f"model files does not exist at {config_path} and {weight_path}")
+            logger.debug("model files does not exist at %s and %s" % (config_path, weight_path))
             return False
 
     def save(self, config_path, weight_path):
-        logger.debug(f"save model to {config_path}")
+        logger.debug("save model to %s" % (config_path))
         with open(config_path, "wt") as f:
             json.dump(self.model.get_config(), f)
             self.model.save_weights(weight_path)
         self.digest = self.fetch_digest(weight_path)
-        logger.debug(f"saved model digest {self.digest}")
+        logger.debug("saved model digest %s" % (self.digest))
 
         mc = self.config.model
         resources = self.config.resource

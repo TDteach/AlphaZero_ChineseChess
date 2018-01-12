@@ -1,0 +1,5 @@
+#selfplay data
+*.json
+
+#tmp models
+chess-alpha-zero-master/data/model/next_generation/*

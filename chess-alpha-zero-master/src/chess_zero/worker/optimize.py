@@ -87,14 +87,14 @@ class OptimizeWorker:
                 if len(self.filenames) == 0:
                     break
                 filename = self.filenames.popleft()
-                logger.debug(f"loading data from {filename}")
+                logger.debug("loading data from %s" % (filename))
                 futures.append(executor.submit(load_data_from_file,filename))
             while futures and len(self.dataset[0]) < self.config.trainer.dataset_size:
                 for x,y in zip(self.dataset,futures.popleft().result()):
                     x.extend(y)
                 if len(self.filenames) > 0:
                     filename = self.filenames.popleft()
-                    logger.debug(f"loading data from {filename}")
+                    logger.debug("loading data from %s" % (filename))
                     futures.append(executor.submit(load_data_from_file,filename))
 
     def collect_all_loaded_data(self):

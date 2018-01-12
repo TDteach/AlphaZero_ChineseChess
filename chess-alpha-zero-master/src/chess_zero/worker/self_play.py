@@ -11,7 +11,7 @@ from chess_zero.agent.model_chess import ChessModel
 from chess_zero.agent.player_chess import ChessPlayer
 from chess_zero.config import Config
 from chess_zero.env.chess_env import ChessEnv, Winner
-from chess_zero.lib.data_helper import get_game_data_filenames, write_game_data_to_file, pretty_print
+from chess_zero.lib.data_helper import get_game_data_filenames, write_game_data_to_file
 from chess_zero.lib.model_helper import load_best_model_weight, save_as_best_model, \
     reload_best_model_weight_if_changed
 
@@ -45,11 +45,18 @@ class SelfPlayWorker:
                 game_idx += 1
                 start_time = time()
                 env, data = futures.popleft().result()
-                print(f"game {game_idx:3} time={time() - start_time:5.1f}s "
-                    f"halfmoves={env.num_halfmoves:3} {env.winner:12} "
-                    f"{'by resign ' if env.resigned else '          '}")
 
-                pretty_print(env, ("current_model", "current_model"))
+                if env.resigned:
+                    resigned = 'by resign '
+                else:
+                    resigned = '          '
+                print("game %3d time=%5.1fs "
+                    "%3d %s "
+                    "%s" % (game_idx, time() - start_time, env.num_halfmoves, env.winner, resigned))
+
+                print('game %3d time=%5.1fs ' % (game_idx, time()-start_time))
+
+                # pretty_print(env, ("current_model", "current_model"))
                 self.buffer += data
                 if (game_idx % self.config.play_data.nb_game_in_file) == 0:
                     self.flush_buffer()
@@ -70,7 +77,7 @@ class SelfPlayWorker:
         rc = self.config.resource
         game_id = datetime.now().strftime("%Y%m%d-%H%M%S.%f")
         path = os.path.join(rc.play_data_dir, rc.play_data_filename_tmpl % game_id)
-        logger.info(f"save play data to {path}")
+        logger.info("save play data to %s" % (path))
         thread = Thread(target=write_game_data_to_file, args=(path, self.buffer))
         thread.start()
         self.buffer = []
