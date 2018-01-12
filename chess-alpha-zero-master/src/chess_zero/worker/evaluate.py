@@ -3,6 +3,7 @@ from concurrent.futures import ProcessPoolExecutor, as_completed
 from logging import getLogger
 from multiprocessing import Manager
 from time import sleep
+from collections import deque
 
 from chess_zero.agent.model_chess import ChessModel
 from chess_zero.agent.player_chess import ChessPlayer
@@ -10,6 +11,7 @@ from chess_zero.config import Config
 from chess_zero.env.chess_env import ChessEnv, Winner
 from chess_zero.lib.data_helper import get_next_generation_model_dirs
 from chess_zero.lib.model_helper import save_as_best_model, load_best_model_weight
+import time
 
 logger = getLogger(__name__)
 
@@ -33,25 +35,29 @@ class EvaluateWorker:
         while True:
             ng_model, model_dir = self.load_next_generation_model()
             logger.debug("start evaluate model %s" % (model_dir))
-            ng_is_great = self.evaluate_model(ng_model)
+            ng_is_great, ng_pipes = self.evaluate_model(ng_model)
             if ng_is_great:
                 logger.debug("New Model become best model: %s" % (model_dir))
                 save_as_best_model(ng_model)
                 self.current_model = ng_model
-            self.move_model(model_dir)
+                self.cur_pipes = ng_pipes
+            else:
+                logger.debug("No need to renew the Model.")
+            # self.move_model(model_dir)
 
     def evaluate_model(self, ng_model):
         ng_pipes = self.m.list([ng_model.get_pipes(self.play_config.search_threads) for _ in range(self.play_config.max_processes)])
 
-        futures = []
+        futures = deque()
         with ProcessPoolExecutor(max_workers=self.play_config.max_processes) as executor:
             for game_idx in range(self.config.eval.game_num):
                 fut = executor.submit(play_game, self.config, cur=self.cur_pipes, ng=ng_pipes, current_white=(game_idx % 2 == 0))
                 futures.append(fut)
 
             results = []
-            for fut in as_completed(futures):
+            for game_idx in range(self.config.eval.game_num):
                 # ng_score := if ng_model win -> 1, lose -> 0, draw -> 0.5
+                fut = futures.popleft()
                 ng_score, env, current_white = fut.result()
                 results.append(ng_score)
                 win_rate = sum(results) / len(results)
@@ -71,21 +77,21 @@ class EvaluateWorker:
                              "%5.1f\n"
                              "%s" % (game_idx, ng_score, player, resigned, win_rate, env.board.fen().split(' ')[0]))
 
-                colors = ("current_model", "ng_model")
-                if not current_white:
-                    colors = reversed(colors)
-                # (env, colors)
+                # colors = ("current_model", "ng_model")
+                # if not current_white:
+                #     colors = reversed(colors)
+                # pretty_print(env, colors)
 
                 if len(results)-sum(results) >= self.config.eval.game_num * (1-self.config.eval.replace_rate):
                     logger.debug("lose count reach %d so give up challenge" % (results.count(0)))
-                    return False
+                    return False,ng_pipes
                 if sum(results) >= self.config.eval.game_num * self.config.eval.replace_rate:
                     logger.debug("win count reach %d so change best model" % (results.count(1)))
-                    return True
+                    return True,ng_pipes
 
         win_rate = sum(results) / len(results)
         logger.debug("winning rate %.1f" % win_rate*100)
-        return win_rate >= self.config.eval.replace_rate
+        return win_rate >= self.config.eval.replace_rate, ng_pipes
 
     def move_model(self, model_dir):
         rc = self.config.resource
@@ -113,8 +119,8 @@ class EvaluateWorker:
                 self.model_list.extend(dirs[i+1:])
             if len(self.model_list) > 0:
                 break
-            logger.info("There is no next generation model to evaluate, waiting for 60s")
-            sleep(60)
+            logger.info("There is no next generation model to evaluate, waiting for 600s")
+            sleep(600)
         model_dir = self.model_list.pop()
 
         config_path = os.path.join(model_dir, rc.next_generation_model_config_filename)

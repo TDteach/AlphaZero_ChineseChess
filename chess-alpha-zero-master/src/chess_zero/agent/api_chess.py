@@ -30,8 +30,11 @@ class ChessModelAPI:
             data, result_pipes = [], []
             for pipe in ready:
                 while pipe.poll():
-                    data.append(pipe.recv())
-                    result_pipes.append(pipe)
+                    try:
+                        data.append(pipe.recv())
+                        result_pipes.append(pipe)
+                    except EOFError as e:
+                        pass
 
             data = np.asarray(data, dtype=np.float32)
             policy_ary, value_ary = self.agent_model.model.predict_on_batch(data)

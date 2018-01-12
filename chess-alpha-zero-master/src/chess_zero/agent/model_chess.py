@@ -131,17 +131,25 @@ class ChessModel:
             return False
 
     def save(self, config_path, weight_path):
-        logger.debug("save model to %s" % (config_path))
+        logger.debug("saving model to %s" % (config_path))
+        print('debug-3')
         with open(config_path, "wt") as f:
+            print('debug-2')
             json.dump(self.model.get_config(), f)
+            print('debug-1')
             self.model.save_weights(weight_path)
+            print('debug-0')
         self.digest = self.fetch_digest(weight_path)
         logger.debug("saved model digest %s" % (self.digest))
 
+        print('debug')
+
         mc = self.config.model
         resources = self.config.resource
+        print('debug2')
         if mc.distributed and config_path == resources.model_best_config_path:
             try:
+                print('debug3')
                 logger.debug("saving model to server")
                 ftp_connection = ftplib.FTP(resources.model_best_distributed_ftp_server,
                                             resources.model_best_distributed_ftp_user,
@@ -156,4 +164,5 @@ class ChessModel:
                 fh.close()
                 ftp_connection.quit()
             except:
+                print('debug4')
                 pass

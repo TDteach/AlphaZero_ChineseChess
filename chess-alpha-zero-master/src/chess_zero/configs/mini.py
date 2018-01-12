@@ -1,7 +1,7 @@
 class EvaluateConfig:
     def __init__(self):
         self.vram_frac = 1.0
-        self.game_num = 50
+        self.game_num = 2
         self.replace_rate = 0.55
         self.play_config = PlayConfig()
         self.play_config.simulation_num_per_move = 100 # before 200
@@ -10,7 +10,7 @@ class EvaluateConfig:
         self.play_config.tau_decay_rate = 0.6 # I need a better distribution...
         self.play_config.noise_eps = 0
         self.evaluate_latest_first = True
-        self.max_game_length = 100  # before 1000
+        self.max_game_length = 1  # before 1000
 
 
 class PlayDataConfig:
