@@ -52,14 +52,15 @@ class OptimizeWorker:
                 self.filenames = deque(files)
                 shuffle(self.filenames)
                 self.fill_queue()
-                steps = self.train_epoch(self.config.trainer.epoch_to_checkpoint)
-                total_steps += steps
-                self.save_current_model()
-                a, b, c = self.dataset
-                while len(a) > self.config.trainer.dataset_size/2:
-                    a.popleft()
-                    b.popleft()
-                    c.popleft()
+                if len(self.dataset[0]) > 0:
+                    steps = self.train_epoch(self.config.trainer.epoch_to_checkpoint)
+                    total_steps += steps
+                    self.save_current_model()
+                    a, b, c = self.dataset
+                    while len(a) > self.config.trainer.dataset_size/2:
+                        a.popleft()
+                        b.popleft()
+                        c.popleft()
 
     def train_epoch(self, epochs):
         tc = self.config.trainer
@@ -98,8 +99,10 @@ class OptimizeWorker:
                 logger.debug("loading data from %s" % (filename))
                 futures.append(executor.submit(load_data_from_file,filename))
             while futures and len(self.dataset[0]) < self.config.trainer.dataset_size: #fill tuples
-                for x,y in zip(self.dataset,futures.popleft().result()):
-                    x.extend(y)
+                tuple = futures.popleft().result()
+                if tuple is not None:
+                    for x,y in zip(self.dataset,tuple):
+                        x.extend(y)
                 if len(self.filenames) > 0:
                     filename = self.filenames.popleft()
                     logger.debug("loading data from %s" % (filename))

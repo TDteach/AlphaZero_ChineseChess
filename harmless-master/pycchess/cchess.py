@@ -317,8 +317,8 @@ try:
             print 'RED'
         else:
             print 'BLACK'
-        step = step+1
         print 'STEP '+str(step)+':'
+        step = step+1
         runGame()
         time.sleep(1)
         raw_input('pause')

@@ -27,6 +27,7 @@ class EvaluateWorker:
         self.current_model = self.load_current_model()
         self.m = Manager()
         self.cur_pipes = self.m.list([self.current_model.get_pipes(self.play_config.search_threads) for _ in range(self.play_config.max_processes)])
+        self.model_list = []
 
     def start(self):
         while True:
@@ -100,11 +101,20 @@ class EvaluateWorker:
         rc = self.config.resource
         while True:
             dirs = get_next_generation_model_dirs(self.config.resource)
-            if dirs:
+            i = -1
+            if dirs is not None:
+                i = len(dirs)-1
+            while i >= 0:
+                if dirs[i] in self.model_list:
+                    break
+                i = i-1
+            if (dirs is not None) and (len(dirs) > i):
+                self.model_list.extend(dirs[i+1:])
+            if len(self.model_list) > 0:
                 break
-            logger.info("There is no next generation model to evaluate")
+            logger.info("There is no next generation model to evaluate, waiting for 60s")
             sleep(60)
-        model_dir = dirs[-1] if self.config.eval.evaluate_latest_first else dirs[0]
+        model_dir = self.model_list.pop()
         config_path = os.path.join(model_dir, rc.next_generation_model_config_filename)
         weight_path = os.path.join(model_dir, rc.next_generation_model_weight_filename)
         model = ChessModel(self.config)

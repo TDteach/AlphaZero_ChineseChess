@@ -52,5 +52,5 @@ def read_game_data_from_file(path):
         with open(path, "rt") as f:
             return json.load(f)
     except Exception as e:
-        print(e)
+        return None
 

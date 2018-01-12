@@ -13,7 +13,7 @@ from chess_zero.config import Config
 from chess_zero.env.chess_env import ChessEnv, Winner
 from chess_zero.lib.data_helper import get_game_data_filenames, write_game_data_to_file
 from chess_zero.lib.model_helper import load_best_model_weight, save_as_best_model, \
-    reload_best_model_weight_if_changed
+    need_to_reload_best_model_weight
 
 logger = getLogger(__name__)
 
@@ -36,14 +36,24 @@ class SelfPlayWorker:
     def start(self):
         self.buffer = []
 
+        need_to_renew_model = True
+
         futures = deque()
         with ProcessPoolExecutor(max_workers=self.config.play.max_processes) as executor:
-            for i in range(self.config.play.max_processes):
-                futures.append(executor.submit(self_play_buffer, self.config, cur=self.cur_pipes))
             game_idx = 0
             while True:
                 game_idx += 1
                 start_time = time()
+
+                if need_to_renew_model and len(futures) == 0:
+                    load_best_model_weight(self.current_model)
+                    for i in range(self.config.play.max_processes):
+                        futures.append(executor.submit(self_play_buffer, self.config, cur=self.cur_pipes))
+                    self.buffer = []
+                    need_to_renew_model = False
+                    if (game_idx > 1):
+                        self.remove_play_data(all=True)
+
                 env, data = futures.popleft().result()
 
                 if env.resigned:
@@ -58,13 +68,15 @@ class SelfPlayWorker:
 
                 # pretty_print(env, ("current_model", "current_model"))
                 self.buffer += data
+
                 if (game_idx % self.config.play_data.nb_game_in_file) == 0:
                     self.flush_buffer()
-                    if reload_best_model_weight_if_changed(self.current_model):
-                        self.remove_play_data(all=True)
+                    if need_to_reload_best_model_weight(self.current_model):
+                        need_to_renew_model = True
                     else:
                         self.remove_play_data(all=False)
-                futures.append(executor.submit(self_play_buffer, self.config, cur=self.cur_pipes)) # Keep it going
+                if not need_to_renew_model:
+                    futures.append(executor.submit(self_play_buffer, self.config, cur=self.cur_pipes)) # Keep it going
 
         if len(data) > 0:
             self.flush_buffer()
