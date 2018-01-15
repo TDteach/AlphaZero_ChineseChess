@@ -53,7 +53,7 @@ class OptimizeWorker:
                 self.filenames = deque(files)
                 shuffle(self.filenames)
                 self.fill_queue()
-                if len(self.dataset[0]) > self.trainer.batch_size:
+                if len(self.dataset[0]) > self.config.trainer.batch_size:
                     steps = self.train_epoch(self.config.trainer.epoch_to_checkpoint)
                     total_steps += steps
                     self.save_current_model()
@@ -96,7 +96,7 @@ class OptimizeWorker:
             for _ in range(self.config.trainer.cleaning_processes):
                 if len(self.filenames) == 0:
                     break
-                filename = self.filenames.popleft()
+                filename = self.filenames.pop()
                 logger.debug("loading data from %s" % (filename))
                 futures.append(executor.submit(load_data_from_file,filename))
             while futures and len(self.dataset[0]) < self.config.trainer.dataset_size: #fill tuples
@@ -105,7 +105,7 @@ class OptimizeWorker:
                     for x,y in zip(self.dataset,tuple):
                         x.extend(y)
                 if len(self.filenames) > 0:
-                    filename = self.filenames.popleft()
+                    filename = self.filenames.pop()
                     logger.debug("loading data from %s" % (filename))
                     futures.append(executor.submit(load_data_from_file,filename))
 

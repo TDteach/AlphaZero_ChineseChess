@@ -27,31 +27,32 @@ class EvaluateWorker:
         self.config = config
         self.play_config = config.eval.play_config
         self.current_model = self.load_current_model()
+        self.ng_model = ChessModel(self.config)
         self.m = Manager()
         self.cur_pipes = self.m.list([self.current_model.get_pipes(self.play_config.search_threads) for _ in range(self.play_config.max_processes)])
+        self.ng_pipes = self.m.list([self.ng_model.get_pipes(self.play_config.search_threads) for _ in range(self.play_config.max_processes)])
         self.model_list = []
+        self.history_list = []
 
     def start(self):
         while True:
-            ng_model, model_dir = self.load_next_generation_model()
+            model_dir,config_path, weight_path = self.load_next_generation_model()
             logger.debug("start evaluate model %s" % (model_dir))
-            ng_is_great, ng_pipes = self.evaluate_model(ng_model)
+            ng_is_great = self.evaluate_model()
             if ng_is_great:
                 logger.debug("New Model become best model: %s" % (model_dir))
-                save_as_best_model(ng_model)
-                self.current_model = ng_model
-                self.cur_pipes = ng_pipes
+                save_as_best_model(self.ng_model)
+                self.current_model.load(config_path, weight_path)
             else:
                 logger.debug("No need to renew the Model.")
             # self.move_model(model_dir)
 
-    def evaluate_model(self, ng_model):
-        ng_pipes = self.m.list([ng_model.get_pipes(self.play_config.search_threads) for _ in range(self.play_config.max_processes)])
+    def evaluate_model(self):
 
         futures = deque()
         with ProcessPoolExecutor(max_workers=self.play_config.max_processes) as executor:
             for game_idx in range(self.config.eval.game_num):
-                fut = executor.submit(play_game, self.config, cur=self.cur_pipes, ng=ng_pipes, current_white=(game_idx % 2 == 0))
+                fut = executor.submit(play_game, self.config, cur=self.cur_pipes, ng=self.ng_pipes, current_white=(game_idx % 2 == 0))
                 futures.append(fut)
 
             results = []
@@ -84,14 +85,14 @@ class EvaluateWorker:
 
                 if len(results)-sum(results) >= self.config.eval.game_num * (1-self.config.eval.replace_rate):
                     logger.debug("lose count reach %d so give up challenge" % (results.count(0)))
-                    return False,ng_pipes
+                    return False
                 if sum(results) >= self.config.eval.game_num * self.config.eval.replace_rate:
                     logger.debug("win count reach %d so change best model" % (results.count(1)))
-                    return True,ng_pipes
+                    return True
 
         win_rate = sum(results) / len(results)
         logger.debug("winning rate %.1f" % win_rate*100)
-        return win_rate >= self.config.eval.replace_rate, ng_pipes
+        return win_rate >= self.config.eval.replace_rate
 
     def move_model(self, model_dir):
         rc = self.config.resource
@@ -112,11 +113,12 @@ class EvaluateWorker:
             if dirs is not None:
                 i = len(dirs)-1
             while i >= 0:
-                if dirs[i] in self.model_list:
+                if dirs[i] in self.history_list:
                     break
                 i = i-1
             if (dirs is not None) and (len(dirs) > i):
                 self.model_list.extend(dirs[i+1:])
+                self.history_list.extend(dirs[i+1:])
             if len(self.model_list) > 0:
                 break
             logger.info("There is no next generation model to evaluate, waiting for 600s")
@@ -125,9 +127,8 @@ class EvaluateWorker:
 
         config_path = os.path.join(model_dir, rc.next_generation_model_config_filename)
         weight_path = os.path.join(model_dir, rc.next_generation_model_weight_filename)
-        model = ChessModel(self.config)
-        model.load(config_path, weight_path)
-        return model, model_dir
+        self.ng_model.load(config_path, weight_path)
+        return model_dir, config_path, weight_path
 
 
 def play_game(config, cur, ng, current_white: bool) -> (float, ChessEnv, bool):
