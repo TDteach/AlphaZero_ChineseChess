@@ -51,9 +51,15 @@ class SelfPlayWorker:
                         futures.append(executor.submit(self_play_buffer, self.config, cur=self.cur_pipes))
                     #self.buffer = []
                     need_to_renew_model = False
+<<<<<<< HEAD
                     #if (game_idx > 1):
                     #    self.remove_play_data(all=True)
                     #game_idx = 1
+=======
+                    if (game_idx > 1):
+                        self.remove_play_data(all=True)
+                    game_idx = 1
+>>>>>>> 438fd67a9eb668a20b45549061d348d461c145c1
 
                 env, data = futures.popleft().result()
 
