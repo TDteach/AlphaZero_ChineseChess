@@ -19,6 +19,7 @@ class VisitStats:
     def __init__(self):
         self.a = defaultdict(ActionStats)
         self.sum_n = 0
+        self.deep = -1
 
 
 class ActionStats:
@@ -30,7 +31,7 @@ class ActionStats:
 
 class ChessPlayer:
     # dot = False
-    def __init__(self, config: Config, pipes=None, play_config=None, dummy=False):
+    def __init__(self, config: Config, search_tree=None, pipes=None, play_config=None, dummy=False):
         self.moves = []
 
         self.config = config
@@ -43,7 +44,14 @@ class ChessPlayer:
             return
 
         self.pipe_pool = pipes
+
         self.node_lock = defaultdict(Lock)
+
+
+        if search_tree is None:
+            self.reset()
+        else:
+            self.tree = search_tree
 
     def reset(self):
         self.tree = defaultdict(VisitStats)
@@ -73,7 +81,7 @@ class ChessPlayer:
             print('%7.5f:' % (s[3]))
 
     def action(self, env, can_stop = True) -> str:
-        self.reset()
+        #self.reset()
 
         # for tl in range(self.play_config.thinking_loop):
         root_value, naked_value = self.search_moves(env)
@@ -99,7 +107,7 @@ class ChessPlayer:
 
         return np.max(vals), vals[0] # vals[0] is kind of racy
 
-    def search_my_move(self, env: ChessEnv, is_root_node=False) -> float:
+    def search_my_move(self, env: ChessEnv, is_root_node=False, bef_deep=None) -> float:
         """
         Q, V is value for this Player(always white).
         P is value for the player of next_player (black or white)
@@ -117,7 +125,14 @@ class ChessPlayer:
             if state not in self.tree:
                 leaf_p, leaf_v = self.expand_and_evaluate(env)
                 self.tree[state].p = leaf_p
+                if bef_deep is None:
+                    self.tree[state].deep = 0
+                else:
+                    self.tree[state].deep = bef_deep+1
                 return leaf_v # I'm returning everything from the POV of side to move
+
+            if self.tree[state].deep < bef_deep: # loop -> loss
+                return -1
 
             # SELECT STEP
             action_t = self.select_action_q_and_u(env, is_root_node)
@@ -135,7 +150,7 @@ class ChessPlayer:
         # env.step(action_t.uci())
         env.step(action_t)
 
-        leaf_v = self.search_my_move(env)  # next move from enemy POV
+        leaf_v = self.search_my_move(env,bef_deep=self.tree[state].deep)  # next move from enemy POV
         leaf_v = -leaf_v
 
         # BACKUP STEP

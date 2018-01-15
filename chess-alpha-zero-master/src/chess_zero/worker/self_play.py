@@ -6,9 +6,10 @@ from logging import getLogger
 from multiprocessing import Manager
 from threading import Thread
 from time import time
+from collections import defaultdict
 
 from chess_zero.agent.model_chess import ChessModel
-from chess_zero.agent.player_chess import ChessPlayer
+from chess_zero.agent.player_chess import ChessPlayer, VisitStats
 from chess_zero.config import Config
 from chess_zero.env.chess_env import ChessEnv, Winner
 from chess_zero.lib.data_helper import get_game_data_filenames, write_game_data_to_file
@@ -51,16 +52,9 @@ class SelfPlayWorker:
                         futures.append(executor.submit(self_play_buffer, self.config, cur=self.cur_pipes))
                     #self.buffer = []
                     need_to_renew_model = False
-<<<<<<< HEAD
-                    #if (game_idx > 1):
-                    #    self.remove_play_data(all=True)
-                    #game_idx = 1
-=======
                     if (game_idx > 1):
                         self.remove_play_data(all=True)
                     game_idx = 1
->>>>>>> 438fd67a9eb668a20b45549061d348d461c145c1
-
                 env, data = futures.popleft().result()
 
                 if env.resigned:
@@ -119,9 +113,10 @@ class SelfPlayWorker:
 def self_play_buffer(config, cur) -> (ChessEnv, list):
     pipes = cur.pop() # borrow
     env = ChessEnv().reset()
+    search_tree = defaultdict(VisitStats)
 
-    white = ChessPlayer(config, pipes=pipes)
-    black = ChessPlayer(config, pipes=pipes)
+    white = ChessPlayer(config, search_tree=search_tree, pipes=pipes)
+    black = ChessPlayer(config, search_tree=search_tree, pipes=pipes)
 
     while not env.done:
         if env.white_to_move:
