@@ -221,7 +221,9 @@ class ChessPlayer:
 
     def apply_temperature(self, policy, turn):
         tau = np.power(self.play_config.tau_decay_rate, turn + 1)
-        if tau < 0.1 or turn > 30:
+        if turn > 100:
+            tau -=0.3
+        if tau < 0.1:
             tau = 0
         if tau == 0:
             action = np.argmax(policy)
