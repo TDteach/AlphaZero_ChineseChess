@@ -19,7 +19,7 @@ class VisitStats:
     def __init__(self):
         self.a = defaultdict(ActionStats)
         self.sum_n = 0
-        self.deep = -1
+        self.visit = []
 
 
 class ActionStats:
@@ -92,7 +92,7 @@ class ChessPlayer:
                         root_value <= self.play_config.resign_threshold \
                         and env.num_halfmoves > self.play_config.min_resign_turn:
             # noinspection PyTypeChecker
-            return None
+            return None  #for resign return None
         else:
             self.moves.append([env.observation, list(policy)])
             return self.config.labels[my_action]
@@ -100,14 +100,14 @@ class ChessPlayer:
     def search_moves(self, env) -> (float, float):
         futures = []
         with ThreadPoolExecutor(max_workers=self.play_config.search_threads) as executor:
-            for _ in range(self.play_config.simulation_num_per_move):
-                futures.append(executor.submit(self.search_my_move,env=env.copy(),is_root_node=True))
+            for i in range(self.play_config.simulation_num_per_move):
+                futures.append(executor.submit(self.search_my_move,env=env.copy(),is_root_node=True, tid=i))
 
         vals = [f.result() for f in futures]
 
         return np.max(vals), vals[0] # vals[0] is kind of racy
 
-    def search_my_move(self, env: ChessEnv, is_root_node=False, bef_deep=None) -> float:
+    def search_my_move(self, env: ChessEnv, is_root_node=False, tid=0) -> float:  #dfs to the leaf and back up
         """
         Q, V is value for this Player(always white).
         P is value for the player of next_player (black or white)
@@ -116,7 +116,6 @@ class ChessPlayer:
         if env.done:
             if env.winner == Winner.draw:
                 return 0
-            # assert env.whitewon != env.white_to_move # side to move can't be winner!
             return -1
 
         state = state_key(env)
@@ -125,19 +124,16 @@ class ChessPlayer:
             if state not in self.tree:
                 leaf_p, leaf_v = self.expand_and_evaluate(env)
                 self.tree[state].p = leaf_p
-                if bef_deep is None:
-                    self.tree[state].deep = 0
-                else:
-                    self.tree[state].deep = bef_deep+1
                 return leaf_v # I'm returning everything from the POV of side to move
 
-            if self.tree[state].deep < bef_deep: # loop -> loss
-                return -1
+            if tid in self.tree[state].visit: # loop -> loss
+                return 0
+            self.tree[state].visit.append(tid)
 
             # SELECT STEP
             action_t = self.select_action_q_and_u(env, is_root_node)
 
-            virtual_loss = self.play_config.virtual_loss
+            virtual_loss = self.play_config.virtual_loss # pre_set the virtual_loss for pipline selecting
 
             my_visit_stats = self.tree[state]
             my_stats = my_visit_stats.a[action_t]
@@ -149,14 +145,14 @@ class ChessPlayer:
 
         # env.step(action_t.uci())
         env.step(action_t)
-
-        leaf_v = self.search_my_move(env,bef_deep=self.tree[state].deep)  # next move from enemy POV
+        leaf_v = self.search_my_move(env,tid=tid)  # next move from enemy POV
         leaf_v = -leaf_v
 
         # BACKUP STEP
         # on returning search path
         # update: N, W, Q
         with self.node_lock[state]:
+            my_visit_stats.visit.remove(tid)
             my_visit_stats.sum_n += -virtual_loss + 1
             my_stats.n += -virtual_loss + 1
             my_stats.w += virtual_loss + leaf_v
@@ -193,7 +189,7 @@ class ChessPlayer:
 
         my_visitstats = self.tree[state]
 
-        if my_visitstats.p is not None: #push p to edges
+        if my_visitstats.p is not None: #push p, the prior probability to the edge (my_visitstats.p)
             tot_p = 1e-8
             for mov in env.board.legal_moves:
                 mov_p = my_visitstats.p[self.move_lookup[mov]]
@@ -225,7 +221,7 @@ class ChessPlayer:
 
     def apply_temperature(self, policy, turn):
         tau = np.power(self.play_config.tau_decay_rate, turn + 1)
-        if tau < 0.1:
+        if tau < 0.1 or turn > 30:
             tau = 0
         if tau == 0:
             action = np.argmax(policy)

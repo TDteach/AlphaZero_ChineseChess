@@ -10,7 +10,7 @@ class EvaluateConfig:
         self.play_config.tau_decay_rate = 0.6 # I need a better distribution...
         self.play_config.noise_eps = 0
         self.evaluate_latest_first = True
-        self.max_game_length = 1  # before 1000
+        self.max_game_length = 50  # before 1000
 
 
 class PlayDataConfig:
@@ -18,7 +18,7 @@ class PlayDataConfig:
         self.min_elo_policy = 500 # 0 weight
         self.max_elo_policy = 1800 # 1 weight
         self.sl_nb_game_in_file = 250 # before 250
-        self.nb_game_in_file = 50 #before 50
+        self.nb_game_in_file = 10 #before 50
         self.max_file_num = 150
 
 
@@ -37,7 +37,7 @@ class PlayConfig:
         self.virtual_loss = 3
         self.resign_threshold = -0.8
         self.min_resign_turn = 5
-        self.max_game_length = 10 # before 1000
+        self.max_game_length = 200 # before 1000
 
 
 class TrainerConfig:

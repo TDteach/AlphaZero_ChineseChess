@@ -121,11 +121,11 @@ class Chessboard:
                         legal_moves.append(move_to_str(x, y, x_, y_))
                         if (ch == 'k' and self.turn == RED): #for King to King check
                             d, u = self._y_board_from(x, y)
-                            if (self.board[u][x] == 'K'):
+                            if (u < self.height and self.board[u][x] == 'K'):
                                 legal_moves.append(move_to_str(x, y, x, u))
                         elif (ch == 'K' and self.turn == BLACK):
                             d, u = self._y_board_from(x, y)
-                            if (self.board[d][x] == 'k'):
+                            if (d > -1 and self.board[d][x] == 'k'):
                                 legal_moves.append(move_to_str(x, y, x, d))
                 elif ch != '.': # for connon and root
                     l,r = self._x_board_from(x,y)
