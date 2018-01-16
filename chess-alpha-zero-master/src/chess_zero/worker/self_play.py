@@ -52,9 +52,9 @@ class SelfPlayWorker:
                         futures.append(executor.submit(self_play_buffer, self.config, cur=self.cur_pipes))
                     #self.buffer = []
                     need_to_renew_model = False
-                    if (game_idx > 1):
-                        self.remove_play_data(all=True)
-                    game_idx = 1
+                    #if (game_idx > 1):
+                    #    self.remove_play_data(all=True)
+                    #game_idx = 1
                 env, data = futures.popleft().result()
 
                 if env.resigned:
@@ -74,8 +74,7 @@ class SelfPlayWorker:
                     self.flush_buffer()
                     if need_to_reload_best_model_weight(self.current_model):
                         need_to_renew_model = True
-                    else:
-                        self.remove_play_data(all=False)
+                    self.remove_play_data(all=False)
                 if not need_to_renew_model:
                     futures.append(executor.submit(self_play_buffer, self.config, cur=self.cur_pipes)) # Keep it going
 
