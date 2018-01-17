@@ -47,7 +47,7 @@ class TrainerConfig:
         self.cleaning_processes = 4 # RAM explosion...
         self.vram_frac = 1.0
         self.batch_size = 1024 # tune this to your gpu memory
-        self.epoch_to_checkpoint = 10
+        self.epoch_to_checkpoint = 5
         self.dataset_size = 100000
         self.start_total_steps = 0
         self.save_model_steps = 25
