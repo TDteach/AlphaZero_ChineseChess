@@ -45,7 +45,7 @@ class OptimizeWorker:
 
         while True:
             files = get_game_data_filenames(self.config.resource)
-            if (len(files)*self.config.play_data.nb_game_in_file < self.config.trainer.min_games_to_begin_learn):
+            if (len(files)*self.config.play_data.nb_game_in_file < 10):
                 print ('waiting for enough data 600s,    '+str(len(files)*self.config.play_data.nb_game_in_file)+' vs '+str(self.config.trainer.min_games_to_begin_learn)+' games')
                 time.sleep(600)
                 continue
@@ -159,7 +159,8 @@ def convert_to_cheating_data(data):
 
         move_number = int(state_fen.split(' ')[5])
         value_certainty = min(5, move_number)/5 # reduces the noise of the opening... plz train faster
-        sl_value = value*value_certainty + testeval(state_fen, False)*(1-value_certainty)
+        # sl_value = value*value_certainty + testeval(state_fen, False)*(1-value_certainty)
+        sl_value = value
 
         state_list.append(state_planes)
         policy_list.append(policy)

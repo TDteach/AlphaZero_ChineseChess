@@ -108,7 +108,7 @@ class ChessEnv:
 
     def copy(self):
         env = copy.deepcopy(self)
-        # env.board = copy.deepcopy(self.board)
+        env.board = copy.deepcopy(self.board)
         return env
 
     def render(self):
