@@ -7,7 +7,7 @@ from threading import Lock
 import numpy as np
 
 from chess_zero.config import Config
-from chess_zero.env.chess_env import ChessEnv, Winner
+from chess_zero.env.chess_env import ChessEnv, Winner, is_black_turn, maybe_flip_fen
 from chess_zero.cchess.common import Move
 from chess_zero.cchess.chessboard import Chessboard
 
@@ -86,7 +86,8 @@ class ChessPlayer:
         # for tl in range(self.play_config.thinking_loop):
         root_value, naked_value = self.search_moves(env)
         policy = self.calc_policy(env)
-        my_action = int(np.random.choice(range(self.labels_n), p = self.apply_temperature(policy, env.num_halfmoves)))
+        policy = self.apply_temperature(policy, env.num_halfmoves)
+        my_action = int(np.random.choice(range(self.labels_n), p = policy))
 
         if can_stop and self.play_config.resign_threshold is not None and \
                         root_value <= self.play_config.resign_threshold \
@@ -138,10 +139,10 @@ class ChessPlayer:
             my_visit_stats = self.tree[state]
             my_stats = my_visit_stats.a[action_t]
 
-            my_visit_stats.sum_n += virtual_loss
-            my_stats.n += virtual_loss
-            my_stats.w += -virtual_loss
-            my_stats.q = my_stats.w / my_stats.n
+            # my_visit_stats.sum_n += virtual_loss
+            # my_stats.n += virtual_loss
+            # my_stats.w += -virtual_loss
+            # my_stats.q = my_stats.w / my_stats.n
 
         # env.step(action_t.uci())
         env.step(action_t)
@@ -221,9 +222,7 @@ class ChessPlayer:
 
     def apply_temperature(self, policy, turn):
         tau = np.power(self.play_config.tau_decay_rate, turn + 1)
-        if turn > 100:
-            tau -=0.3
-        if tau < 0.1:
+        if tau < 0.1 or turn > 30:
             tau = 0
         if tau == 0:
             action = np.argmax(policy)
@@ -268,5 +267,7 @@ class ChessPlayer:
 
 
 def state_key(env: ChessEnv) -> str:
-    fen = env.board.fen().rsplit(' ', 1) # drop the move clock
+    fen = env.board.fen()
+    fen = maybe_flip_fen(fen, is_black_turn(fen))
+    fen = fen.split(' ') # drop the move clock
     return fen[0]

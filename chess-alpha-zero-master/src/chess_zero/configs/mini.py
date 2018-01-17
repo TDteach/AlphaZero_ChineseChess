@@ -34,7 +34,7 @@ class PlayConfig:
         self.noise_eps = 0.25
         self.dirichlet_alpha = 0.3
         self.tau_decay_rate = 0.99
-        self.virtual_loss = 3
+        self.virtual_loss = 0
         self.resign_threshold = -0.8
         self.min_resign_turn = 5
         self.max_game_length = 200 # before 1000
