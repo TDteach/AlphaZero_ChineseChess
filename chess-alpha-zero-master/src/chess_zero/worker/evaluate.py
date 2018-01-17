@@ -116,7 +116,7 @@ class EvaluateWorker:
                 if dirs[i] in self.history_list:
                     break
                 i = i-1
-            if (dirs is not None) and (len(dirs) > i):
+            if (dirs is not None) and (len(dirs) > i+1):
                 self.model_list.extend(dirs[i+1:])
                 self.history_list.extend(dirs[i+1:])
             if len(self.model_list) > 0:
@@ -124,6 +124,10 @@ class EvaluateWorker:
             logger.info("There is no next generation model to evaluate, waiting for 600s")
             sleep(600)
         model_dir = self.model_list.pop()
+
+        print ('========================================================')
+        print ('eval against %s' % (model_dir))
+        print ('========================================================')
 
         config_path = os.path.join(model_dir, rc.next_generation_model_config_filename)
         weight_path = os.path.join(model_dir, rc.next_generation_model_weight_filename)
