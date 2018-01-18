@@ -240,6 +240,9 @@ class ChessPlayer:
             policy[self.move_lookup[action]] = a_s.n
 
         policy /= np.sum(policy)
+
+        if not env.white_to_move:
+            policy = Config.flip_policy(policy)
         return policy
 
     def sl_action(self, observation, my_action, weight=1):
