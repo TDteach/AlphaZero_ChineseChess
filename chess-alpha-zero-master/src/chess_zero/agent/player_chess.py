@@ -133,8 +133,6 @@ class ChessPlayer:
 
             self.tree[state].visit.append(tid)
             # SELECT STEP
-
-            legal_moves = state_moves(env)
             action_t = self.select_action_q_and_u(state, env, is_root_node)
 
         # env.step(action_t.uci())
@@ -207,8 +205,6 @@ class ChessPlayer:
         for action in legal_moves:
             a_s = my_visitstats.a[action]
             p_ = a_s.p
-            if p_ < -0.5:
-                print('debug')
             if is_root_node:
                 p_ = (1-e) * p_ + e * np.random.dirichlet([dir_alpha])
             b = a_s.q + c_puct * p_ * xx_ / (1 + a_s.n)
