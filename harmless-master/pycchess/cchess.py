@@ -24,6 +24,7 @@ import json
 import os
 import time
 import random
+import numpy as np
 
 import pygame
 #import pygame._view
@@ -47,19 +48,33 @@ screen = pygame.display.set_mode(size, 0, 32)
 chessboard = chessboard()
 
 replay=None
+policy=None
+values=None
 all_replay = None
+all_values = None
+all_policy = None
 ind_td = None
 step = 0
+labels = create_uci_labels()
+move_lookup = {move: i for move, i in zip(labels, range(len(labels)))}
 
 def random_select_replay():
     global all_replay
+    global all_policy
+    global all_values
     global replay
+    global policy
+    global values
     global ind_td
-    k = random.choice([i for i in range(len(ind_td)-1)])
-    replay = all_replay[ind_td[k]:ind_td[k+1]]
+    k = random.choice(range(len(ind_td)))
+    replay = all_replay[ind_td[k]:ind_td[k + 1]]
+    values = all_values[ind_td[k]:ind_td[k + 1]]
+    policy = all_policy[ind_td[k]:ind_td[k + 1]]
 
 if len(sys.argv) == 2 and sys.argv[1][:2] == '-r':
     global all_replay
+    global all_values
+    global all_policy
     global ind_td
     replay_dir = '/home/tdteach/workspace/AlphaZero_ChineseChess/chess-alpha-zero-master/data/play_data'
     files = os.listdir(replay_dir)
@@ -71,6 +86,8 @@ if len(sys.argv) == 2 and sys.argv[1][:2] == '-r':
     except Exception as e:
         print(e)
     all_replay = [d[0] for d in data]
+    all_policy = [d[1] for d in data]
+    all_values = [d[2] for d in data]
     ind_td=[]
     for i in range(len(all_replay)):
         if all_replay[i] == all_replay[0]:
@@ -175,6 +192,10 @@ def runGame():
     global waiting
     global moved
     global replay
+    global values
+    global policy
+    global move_lookup
+    global labels
 
     for event in pygame.event.get():
         if event.type == QUIT:
@@ -293,19 +314,35 @@ def runGame():
                 if bef[k] != aft[k]:
                     if (aft[k] == '.'):
                         arr[0] = x
-                        arr[1] = 9-y
+                        arr[1] = y
                     else:
                         arr[2] = x
-                        arr[3] = 9-y
+                        arr[3] = y
                 k = k+1
-        print 'from ('+str(arr[0])+','+str(9-arr[1])+') to ('+str(arr[2])+','+str(9-arr[3])+')'
-        chessboard.move_chessman(arr[0], arr[1])
-        chessboard.move_chessman(arr[2], arr[3])
+        uci = chr(ord('a') + arr[0])+str(arr[1])+chr(ord('a') + arr[2])+str(arr[3])
+        print '%s : %f' % (uci, policy[0][move_lookup[uci]])
+        # print uci
+        # print 'from ('+str(arr[0])+','+str(arr[1])+') to ('+str(arr[2])+','+str(arr[3])+')'
+        print 'value = %f' % (values[0])
+        # print 'policy = %f' % (policy[0][move_lookup[uci]])
+
+
+        z = np.argmax(policy[0])
+        print '%s : %f' % (labels[z], policy[0][z])
+
+        chessboard.move_chessman(arr[0], 9-arr[1])
+        chessboard.move_chessman(arr[2], 9-arr[3])
         chessboard.side = 1 - chessboard.side
         chessboard.move_from = 1-chessboard.move_from
         if len(replay) > 2:
             replay = replay[1:]
+            values = values[1:]
+            policy = policy[1:]
         else:
+            print chessboard.get_fen()
+            raw_input('pause')
+            chessboard.draw(screen)
+            pygame.display.update()
             raw_input('next game type enter:')
             newGame()
             random_select_replay()

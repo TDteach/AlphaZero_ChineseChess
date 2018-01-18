@@ -122,3 +122,76 @@ def load_sound(name):
     except pygame.error, message:
         raise SystemExit, message
     return sound
+
+def create_uci_labels():
+    labels_array = []
+    numbers = ['0', '1', '2', '3', '4', '5', '6', '7', '8', '9'] # row
+    letters = ['a', 'b', 'c', 'd', 'e', 'f', 'g', 'h', 'i'] # col
+
+    for n1 in range(10):
+        for l1 in range(9):
+            destinations = [(n1, t) for t in range(9)] + \
+                           [(t, l1) for t in range(10)] + \
+                           [(n1 + a, l1 + b) for (a, b) in
+                            [(-2, -1), (-1, -2), (-2, 1), (1, -2), (2, -1), (-1, 2), (2, 1), (1, 2)]]
+            for (n2, l2) in destinations:
+                if (n1, l1) != (n2, l2) and n2 in range(10) and l2 in range(9):
+                    move = letters[l1] + numbers[n1] + letters[l2] + numbers[n2]
+                    labels_array.append(move)
+
+    #for red advisor
+    labels_array.append('d0e1')
+    labels_array.append('f0e1')
+    labels_array.append('d2e1')
+    labels_array.append('f2e1')
+    labels_array.append('e1d0')
+    labels_array.append('e1f0')
+    labels_array.append('e1d2')
+    labels_array.append('e1f2')
+    # for black advisor
+    labels_array.append('d9e8')
+    labels_array.append('f9e8')
+    labels_array.append('d7e8')
+    labels_array.append('f7e8')
+    labels_array.append('e8d9')
+    labels_array.append('e8f9')
+    labels_array.append('e8d7')
+    labels_array.append('e8f7')
+
+    #for red bishop
+    labels_array.append('c0a2')
+    labels_array.append('c0e2')
+    labels_array.append('g0e2')
+    labels_array.append('g0i2')
+    labels_array.append('c4a2')
+    labels_array.append('c4e2')
+    labels_array.append('g4e2')
+    labels_array.append('g4i2')
+    labels_array.append('a2c0')
+    labels_array.append('e2c0')
+    labels_array.append('e2g0')
+    labels_array.append('i2g0')
+    labels_array.append('a2c4')
+    labels_array.append('e2c4')
+    labels_array.append('e2g4')
+    labels_array.append('i2g4')
+    # for black bishop
+    labels_array.append('c9a7')
+    labels_array.append('c9e7')
+    labels_array.append('g9e7')
+    labels_array.append('g9i7')
+    labels_array.append('c5a7')
+    labels_array.append('c5e7')
+    labels_array.append('g5e7')
+    labels_array.append('g5i7')
+    labels_array.append('a7c9')
+    labels_array.append('e7c9')
+    labels_array.append('e7g9')
+    labels_array.append('i7g9')
+    labels_array.append('a7c5')
+    labels_array.append('e7c5')
+    labels_array.append('e7g5')
+    labels_array.append('i7g5')
+
+
+    return labels_array

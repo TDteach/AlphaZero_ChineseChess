@@ -242,7 +242,7 @@ class Chessboard:
             u = u+1
         return d,u
 
-    def result(self, claim_draw=True):
+    def result(self, claim_draw=True) -> str:
         rst = '*'
         if ('k' not in self.board[0]) and ('k' not in self.board[1]) and ('k' not in self.board[2]):
             rst = '0-1'
