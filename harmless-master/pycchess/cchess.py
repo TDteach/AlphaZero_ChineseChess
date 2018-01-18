@@ -66,7 +66,7 @@ def random_select_replay():
     global policy
     global values
     global ind_td
-    k = random.choice(range(len(ind_td)))
+    k = random.choice(range(len(ind_td)-1))
     replay = all_replay[ind_td[k]:ind_td[k + 1]]
     values = all_values[ind_td[k]:ind_td[k + 1]]
     policy = all_policy[ind_td[k]:ind_td[k + 1]]

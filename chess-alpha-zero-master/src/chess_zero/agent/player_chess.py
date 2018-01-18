@@ -135,7 +135,6 @@ class ChessPlayer:
             # SELECT STEP
             action_t = self.select_action_q_and_u(state, env, is_root_node)
 
-        # env.step(action_t.uci())
         env.step(action_t)
         leaf_v = self.search_my_move(env,tid=tid)  # next move from enemy POV
         leaf_v = -leaf_v
@@ -164,9 +163,6 @@ class ChessPlayer:
 
         leaf_p, leaf_v = self.predict(state_planes)
         # these are canonical policy and value (i.e. side to move is "white")
-
-        # if not env.white_to_move:
-        #     leaf_p = Config.flip_policy(leaf_p) # get it back to python-chess form
 
         return leaf_p, leaf_v
 
@@ -212,6 +208,7 @@ class ChessPlayer:
                 best_s = b
                 best_a = action
 
+        # change the canonical move to the real move with respect to the current side
         if env.white_to_move:
             return best_a
         else:

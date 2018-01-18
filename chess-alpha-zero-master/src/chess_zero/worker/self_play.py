@@ -50,11 +50,7 @@ class SelfPlayWorker:
                     load_best_model_weight(self.current_model)
                     for i in range(self.config.play.max_processes):
                         futures.append(executor.submit(self_play_buffer, self.config, cur=self.cur_pipes))
-                    #self.buffer = []
                     need_to_renew_model = False
-                    #if (game_idx > 1):
-                    #    self.remove_play_data(all=True)
-                    #game_idx = 1
                 env, data = futures.popleft().result()
 
                 if env.resigned:
@@ -67,15 +63,14 @@ class SelfPlayWorker:
 
                 print('game %3d time=%5.1fs ' % (game_idx, time()-start_time))
 
-                # pretty_print(env, ("current_model", "current_model"))
                 self.buffer += data
 
                 if (game_idx % self.config.play_data.nb_game_in_file) == 0:
                     self.flush_buffer()
                     if need_to_reload_best_model_weight(self.current_model):
                         need_to_renew_model = True
-                    self.remove_play_data(all=False)
-                if not need_to_renew_model:
+                    self.remove_play_data(all=False) # remove old data
+                if not need_to_renew_model: # avoid congestion
                     futures.append(executor.submit(self_play_buffer, self.config, cur=self.cur_pipes)) # Keep it going
 
         if len(data) > 0:
