@@ -340,7 +340,8 @@ def runGame():
             values = values[1:]
             policy = policy[1:]
         else:
-            print chessboard.get_fen()
+            print replay[0]
+            print replay[1]
             raw_input('pause')
             chessboard.draw(screen)
             pygame.display.update()
