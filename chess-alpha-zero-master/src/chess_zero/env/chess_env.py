@@ -139,7 +139,6 @@ class ChessEnv:
     def testeval(self, absolute=False) -> float:
         return testeval(self.board.fen(), absolute)
 
-
 def testeval(fen, absolute = False) -> float:
     piece_vals = {'r': 14, 'n': 7, 'b': 3, 'a': 2, 'k':1, 'c': 5, 'p': 1} # for RED account
     ans = 0.0
@@ -190,7 +189,7 @@ def check_current_planes(realfen, planes):
             if ep[rank][file] == 1:
                 epstr = coord_to_alg((rank, file))
 
-    realfen = maybe_flip_fen(realfen, flip=is_black_turn(realfen))
+    realfen = maybe_flip_fen(realfen)
     realparts = realfen.split(' ')
     assert realparts[1] == 'w'
     assert realparts[2] == castlingstring
@@ -201,7 +200,7 @@ def check_current_planes(realfen, planes):
 
 
 def canon_input_planes(fen):
-    fen = maybe_flip_fen(fen, is_black_turn(fen))
+    fen = maybe_flip_fen(fen)
     return all_input_planes(fen)
 
 
@@ -216,8 +215,8 @@ def all_input_planes(fen):
     return ret
 
 
-def maybe_flip_fen(fen, flip = False):
-    if not flip:
+def maybe_flip_fen(fen):
+    if not is_black_turn(fen):
         return fen
     foo = fen.split(' ')
     rows = foo[0].split('/')
@@ -234,6 +233,18 @@ def maybe_flip_fen(fen, flip = False):
         + " " + foo[2] \
         + " " + foo[3] + " " + foo[4] + " " + foo[5]
 
+
+def flip_move(mov:str) -> str:
+    return mov[0]+str(ord('9')-ord(mov[1]))+mov[2]+str(ord('9')-ord(mov[3]))
+
+
+def maybe_flip_moves(moves, flip=False):
+    if not flip:
+        return moves
+    rst = []
+    for mov in moves:
+        rst.append(flip_move(mov))
+    return rst
 
 # def aux_planes(fen):
 #     foo = fen.split(' ')

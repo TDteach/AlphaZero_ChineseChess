@@ -7,7 +7,7 @@ from threading import Lock
 import numpy as np
 
 from chess_zero.config import Config
-from chess_zero.env.chess_env import ChessEnv, Winner, is_black_turn, maybe_flip_fen
+from chess_zero.env.chess_env import ChessEnv, Winner, maybe_flip_fen, maybe_flip_moves, flip_move
 from chess_zero.cchess.common import Move
 from chess_zero.cchess.chessboard import Chessboard
 
@@ -20,6 +20,7 @@ class VisitStats:
         self.a = defaultdict(ActionStats)
         self.sum_n = 0
         self.visit = []
+        self.p = None
 
 
 class ActionStats:
@@ -27,6 +28,7 @@ class ActionStats:
         self.n = 0
         self.w = 0
         self.q = 0
+        self.p = -1
 
 
 class ChessPlayer:
@@ -129,20 +131,12 @@ class ChessPlayer:
 
             if tid in self.tree[state].visit: # loop -> loss
                 return 0
+
             self.tree[state].visit.append(tid)
-
             # SELECT STEP
-            action_t = self.select_action_q_and_u(env, is_root_node)
 
-            virtual_loss = self.play_config.virtual_loss # pre_set the virtual_loss for pipline selecting
-
-            my_visit_stats = self.tree[state]
-            my_stats = my_visit_stats.a[action_t]
-
-            # my_visit_stats.sum_n += virtual_loss
-            # my_stats.n += virtual_loss
-            # my_stats.w += -virtual_loss
-            # my_stats.q = my_stats.w / my_stats.n
+            legal_moves = state_moves(env)
+            action_t = self.select_action_q_and_u(state, env, is_root_node)
 
         # env.step(action_t.uci())
         env.step(action_t)
@@ -153,10 +147,13 @@ class ChessPlayer:
         # on returning search path
         # update: N, W, Q
         with self.node_lock[state]:
+            my_visit_stats = self.tree[state]
             my_visit_stats.visit.remove(tid)
-            my_visit_stats.sum_n += -virtual_loss + 1
-            my_stats.n += -virtual_loss + 1
-            my_stats.w += virtual_loss + leaf_v
+            my_visit_stats.sum_n += 1
+
+            my_stats = my_visit_stats.a[action_t]
+            my_stats.n += 1
+            my_stats.w += leaf_v
             my_stats.q = my_stats.w / my_stats.n
 
         return leaf_v
@@ -171,8 +168,8 @@ class ChessPlayer:
         leaf_p, leaf_v = self.predict(state_planes)
         # these are canonical policy and value (i.e. side to move is "white")
 
-        if not env.white_to_move:
-            leaf_p = Config.flip_policy(leaf_p) # get it back to python-chess form
+        # if not env.white_to_move:
+        #     leaf_p = Config.flip_policy(leaf_p) # get it back to python-chess form
 
         return leaf_p, leaf_v
 
@@ -184,21 +181,20 @@ class ChessPlayer:
         return ret
 
     #@profile
-    def select_action_q_and_u(self, env, is_root_node) -> Move:
-        # this method is called with state locked
-        state = state_key(env)
+    def select_action_q_and_u(self, state, env, is_root_node) -> Move:
 
         my_visitstats = self.tree[state]
+        legal_moves = state_moves(env)
 
         if my_visitstats.p is not None: #push p, the prior probability to the edge (my_visitstats.p)
-            tot_p = 1e-8
-            for mov in env.board.legal_moves:
+            tot_p = 0
+            for mov in legal_moves:
                 mov_p = my_visitstats.p[self.move_lookup[mov]]
                 my_visitstats.a[mov].p = mov_p
                 tot_p += mov_p
-            for a_s in my_visitstats.a.values():
-                a_s.p /= tot_p
-            my_visitstats.p = None
+            for mov in legal_moves:
+                my_visitstats.a[mov].p /= tot_p
+            my_visitstats.p = None # release the temp policy
 
         xx_ = np.sqrt(my_visitstats.sum_n + 1)  # sqrt of sum(N(s, b); for all b)
 
@@ -209,8 +205,11 @@ class ChessPlayer:
         best_s = -999
         best_a = None
 
-        for action, a_s in my_visitstats.a.items():
+        for action in legal_moves:
+            a_s = my_visitstats.a[action]
             p_ = a_s.p
+            if p_ < -0.5:
+                print('debug')
             if is_root_node:
                 p_ = (1-e) * p_ + e * np.random.dirichlet([dir_alpha])
             b = a_s.q + c_puct * p_ * xx_ / (1 + a_s.n)
@@ -218,7 +217,10 @@ class ChessPlayer:
                 best_s = b
                 best_a = action
 
-        return best_a
+        if env.white_to_move:
+            return best_a
+        else:
+            return flip_move(best_a)
 
     def apply_temperature(self, policy, turn):
         tau = np.power(self.play_config.tau_decay_rate, turn + 1)
@@ -268,6 +270,12 @@ class ChessPlayer:
 
 def state_key(env: ChessEnv) -> str:
     fen = env.board.fen()
-    fen = maybe_flip_fen(fen, is_black_turn(fen))
+    fen = maybe_flip_fen(fen)
     fen = fen.split(' ') # drop the move clock
     return fen[0]
+
+def state_moves(env: ChessEnv):
+    moves = env.board.legal_moves
+    if not env.white_to_move:
+        moves = maybe_flip_moves(moves, True)
+    return moves
