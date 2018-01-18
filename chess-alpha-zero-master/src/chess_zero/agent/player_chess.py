@@ -86,8 +86,7 @@ class ChessPlayer:
         # for tl in range(self.play_config.thinking_loop):
         root_value, naked_value = self.search_moves(env)
         policy = self.calc_policy(env)
-        policy = self.apply_temperature(policy, env.num_halfmoves)
-        my_action = int(np.random.choice(range(self.labels_n), p = policy))
+        my_action = int(np.random.choice(range(self.labels_n), p=self.apply_temperature(policy, env.num_halfmoves)))
 
         if can_stop and self.play_config.resign_threshold is not None and \
                         root_value <= self.play_config.resign_threshold \
@@ -222,7 +221,7 @@ class ChessPlayer:
 
     def apply_temperature(self, policy, turn):
         tau = np.power(self.play_config.tau_decay_rate, turn + 1)
-        if tau < 0.1 or turn > 30:
+        if tau < 0.1:
             tau = 0
         if tau == 0:
             action = np.argmax(policy)
