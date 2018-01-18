@@ -133,9 +133,13 @@ class ChessPlayer:
 
             self.tree[state].visit.append(tid)
             # SELECT STEP
-            action_t = self.select_action_q_and_u(state, env, is_root_node)
+            canon_action = self.select_action_q_and_u(state, env, is_root_node)
 
-        env.step(action_t)
+
+        if env.white_to_move:
+            env.step(canon_action)
+        else:
+            env.step(flip_move(canon_action))
         leaf_v = self.search_my_move(env,tid=tid)  # next move from enemy POV
         leaf_v = -leaf_v
 
@@ -147,7 +151,8 @@ class ChessPlayer:
             my_visit_stats.visit.remove(tid)
             my_visit_stats.sum_n += 1
 
-            my_stats = my_visit_stats.a[action_t]
+
+            my_stats = my_visit_stats.a[canon_action]
             my_stats.n += 1
             my_stats.w += leaf_v
             my_stats.q = my_stats.w / my_stats.n
@@ -208,11 +213,7 @@ class ChessPlayer:
                 best_s = b
                 best_a = action
 
-        # change the canonical move to the real move with respect to the current side
-        if env.white_to_move:
-            return best_a
-        else:
-            return flip_move(best_a)
+        return best_a
 
     def apply_temperature(self, policy, turn):
         tau = np.power(self.play_config.tau_decay_rate, turn + 1)
