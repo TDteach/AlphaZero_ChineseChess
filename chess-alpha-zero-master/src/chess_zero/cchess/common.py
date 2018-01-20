@@ -42,8 +42,12 @@ chessman_image = ['king.png',
                   'cannon.png',
                   'pawn.png']
 
-init_fen = 'rnbakabnr/9/1c5c1/p1p1p1p1p/9/9/P1P1P1P1P/1C5C1/9/RNBAKABNR r - - 0 1'
+
+
+# init_fen = '3a1a3/9/r2rk3b/2p3p2/p4P1Pp/2N6/2P4R1/c7N/9/3AKA3 r - - 0 1'
+# init_fen = '3aka3/9/C7n/2p4r1/2n6/P3p2pP/2P3P2/R2RK3B/9/3A1A3 r - - 0 1'
 # init_fen = 'rn2ka1nr/4a4/bc2C4/2p1p1p1p/p2c5/2B6/P1P1P1P1P/1C7/9/RN1AKABNR r - - 0 1'
+init_fen = 'rnbakabnr/9/1c5c1/p1p1p1p1p/9/9/P1P1P1P1P/1C5C1/9/RNBAKABNR r - - 0 1'
 mov_dir = {
     'k': [(0, -1), (1, 0), (0, 1), (-1, 0)],
     'K': [(0, -1), (1, 0), (0, 1), (-1, 0)],
