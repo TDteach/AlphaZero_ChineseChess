@@ -282,5 +282,5 @@ def state_key(env: ChessEnv) -> str:
 def state_moves(env: ChessEnv):
     moves = env.board.legal_moves
     if not env.white_to_move:
-        moves = maybe_flip_moves(moves, True)
+        moves = maybe_flip_moves(moves, flip=True)
     return moves

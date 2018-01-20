@@ -8,8 +8,9 @@ __pycache__
 *.csv
 *.gz
 *.swp
-/data/play_data/
-/data/model/next_generation/
+data/play_data/
+data/model/model_best*
+data/model/next_generation/
 .ipynb_checkpoints/
 tmp/
 tmp.*
