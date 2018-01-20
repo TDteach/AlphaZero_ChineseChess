@@ -45,7 +45,7 @@ class OptimizeWorker:
 
         while True:
             files = get_game_data_filenames(self.config.resource)
-            if (len(files)*self.config.play_data.nb_game_in_file < 10):
+            if (len(files)*self.config.play_data.nb_game_in_file < 1000):
                 print ('waiting for enough data 600s,    '+str(len(files)*self.config.play_data.nb_game_in_file)+' vs '+str(self.config.trainer.min_games_to_begin_learn)+' games')
                 time.sleep(600)
                 continue
