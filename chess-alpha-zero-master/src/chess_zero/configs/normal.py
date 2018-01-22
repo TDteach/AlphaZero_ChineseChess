@@ -27,13 +27,13 @@ class PlayConfig:
         self.max_processes = 10
         self.search_threads = 20
         self.vram_frac = 1.0
-        self.simulation_num_per_move = 1000
+        self.simulation_num_per_move = 2000
         self.thinking_loop = 1
         self.logging_thinking = False
         self.c_puct = 1.5
         self.noise_eps = 0.25
         self.dirichlet_alpha = 0.3
-        self.tau_decay_rate = 0.95
+        self.tau_decay_rate = 0.97
         self.virtual_loss = 3
         self.resign_threshold = -0.8
         self.min_resign_turn = 5
