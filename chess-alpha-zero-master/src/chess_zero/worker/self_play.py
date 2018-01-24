@@ -112,15 +112,22 @@ def self_play_buffer(config, cur) -> (ChessEnv, list):
     white = ChessPlayer(config, search_tree=search_tree, pipes=pipes)
     black = ChessPlayer(config, search_tree=search_tree, pipes=pipes)
 
+    history = []
+
+
     while not env.done:
         if env.white_to_move:
             action = white.action(env)
         else:
             action = black.action(env)
         env.step(action)
-        if env.num_halfmoves >= config.play.max_game_length:
+        history.append(action)
+        if len(history) > 6 and history[-1] == history[-5]:
+            cc = cc + 1
+        else:
+            cc = 0
+        if env.num_halfmoves >= config.play.max_game_length or cc >= 4:
             env.adjudicate()
-
     if env.winner == Winner.white:
         black_win = -1
     elif env.winner == Winner.black:
