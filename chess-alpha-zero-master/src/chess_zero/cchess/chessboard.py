@@ -30,26 +30,30 @@ class Chessboard:
             self.assign_fen(None)
         else:
             self.turn = board.turn
-            self.history = board.history.copy()
-            self.ate = board.ate.copy()
+            # self.history = board.history.copy()
+            # self.ate = board.ate.copy()
             self.height = board.height
             self.width = board.width
             self.board = board.board.copy()
+        self.steps = 0
 
     def _resign(self):
         self.turn = RED
-        self.history = []
-        self.ate = []
+        self.steps = 0
+        # self.history = []
+        # self.ate = []
         self._legal_moves = None
         self._fen = None
 
     def _update(self):
         self._fen = None
         self._legal_moves = None
-        if len(self.history)%2 == 0:
+        self.steps += 1
+        if self.steps%2 == 0:
             self.turn = RED
         else:
             self.turn = BLACK
+
 
     def fen(self):
         if self._fen is not None:
@@ -172,18 +176,18 @@ class Chessboard:
         self.push(mov)
 
     def push(self, mov):
-        if self.is_legal(mov):
-            self.ate.append(self.board[mov.n[1]][mov.n[0]])
-            self.board[mov.n[1]][mov.n[0]] = self.board[mov.p[1]][mov.p[0]]
-            self.board[mov.p[1]][mov.p[0]] = '.'
-            self.history.append(mov)
-            self._update()
-
-    def pop(self):
-        mov = self.history.pop()
-        self.board[mov.p[1]][mov.p[0]] = self.board[mov.n[1]][mov.n[0]]
-        self.board[mov.n[1]][mov.n[0]] = self.ate.pop()
+        # if self.is_legal(mov):
+        # self.ate.append(self.board[mov.n[1]][mov.n[0]])
+        self.board[mov.n[1]][mov.n[0]] = self.board[mov.p[1]][mov.p[0]]
+        self.board[mov.p[1]][mov.p[0]] = '.'
+        # self.history.append(mov)
         self._update()
+
+    # def pop(self):
+    #     mov = self.history.pop()
+    #     self.board[mov.p[1]][mov.p[0]] = self.board[mov.n[1]][mov.n[0]]
+    #     self.board[mov.n[1]][mov.n[0]] = self.ate.pop()
+    #     self._update()
 
     def assign_fen(self, fen):
         self._resign()

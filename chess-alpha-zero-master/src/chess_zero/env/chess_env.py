@@ -120,15 +120,15 @@ class ChessEnv:
     def observation(self):
         return self.board.fen()
 
-    def deltamove(self, fen_next):
-        moves = list(self.board.legal_moves)
-        for mov in moves:
-            self.board.push(mov)
-            fee = self.board.fen()
-            self.board.pop()
-            if fee == fen_next:
-                return mov.uci()
-        return None
+    # def deltamove(self, fen_next):
+    #     moves = list(self.board.legal_moves)
+    #     for mov in moves:
+    #         self.board.push(mov)
+    #         fee = self.board.fen()
+    #         self.board.pop()
+    #         if fee == fen_next:
+    #             return mov.uci()
+    #     return None
 
     def replace_tags(self):
         return replace_tags_board(self.board.fen())

@@ -99,12 +99,15 @@ class chessboard:
         return fen_str
 
     def fen_parse(self, fen_str):
+
         self.clearboard()
 
         pc_code = [[16, 17, 19, 21, 23, 25, 27], [32, 33, 35, 37, 39, 41, 43]]
 
         if fen_str == '':
             return
+
+        self.side = BLACK
 
         x = 0
         y = 0
@@ -124,29 +127,26 @@ class chessboard:
                 x += int(ch)
                 if x > 8:
                     x = 8
-            elif ch >= 'A' and ch <= 'Z':
-                if x <= 8:
-                    kind = get_kind(ch)
-
-                    if kind != NONE:
-                        self.add_chessman(kind, self.side, x, y, pc_code[self.side][kind])
-                        pc_code[self.side][kind] += 1
-
-                    x += 1
             elif ch >= 'a' and ch <= 'z':
                 if x <= 8:
                     kind = get_kind(ch)
 
                     if kind != NONE:
-                        self.add_chessman(kind, 1-self.side, x, y, pc_code[1-self.side][kind])
+                        self.add_chessman(kind, self.side, x, 9-y, pc_code[self.side][kind])
+                        pc_code[self.side][kind] += 1
+
+                    x += 1
+            elif ch >= 'A' and ch <= 'Z':
+                if x <= 8:
+                    kind = get_kind(ch)
+
+                    if kind != NONE:
+                        self.add_chessman(kind, 1-self.side, x, 9-y, pc_code[1-self.side][kind])
                         pc_code[1-self.side][kind] += 1
 
                     x += 1
 
-        # if fen_str[i+1] == 'b':
-        #     self.side = BLACK
-        # else:
-        #     self.side = RED
+
 
     def draw(self, screen):
         screen.fill((0,0,0))

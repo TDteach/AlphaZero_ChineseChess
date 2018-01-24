@@ -160,18 +160,22 @@ def fertilize(compact):
     compact = compact.replace('/', '')
     return compact
 
-def newGame():
+def newGame(re=False):
     global init
     global waiting
     global moved
     global step
+    global replay
 
     step = 0
 
     print "setoption newgame\n"
     print '>> new game'
 
-    chessboard.fen_parse(fen_str)
+    if re:
+        chessboard.fen_parse(replay[0])
+    else:
+        chessboard.fen_parse(fen_str)
     init = True
     waiting = False
     moved = False
@@ -308,6 +312,8 @@ def runGame():
     if len(sys.argv) == 2 and sys.argv[1][:2] == '-r': # for replay
         bef = fertilize(replay[0])
         aft = fertilize(replay[1])
+        print(replay[0])
+        print(replay[1])
         arr=[0,0,0,0]
         k=0
         for y in range(10):
@@ -346,8 +352,9 @@ def runGame():
             chessboard.draw(screen)
             pygame.display.update()
             raw_input('next game type enter:')
-            newGame()
             random_select_replay()
+            newGame(re=True)
+
 
 try:
     step = 0
@@ -359,7 +366,7 @@ try:
         print 'STEP '+str(step)+':'
         step = step+1
         runGame()
-        time.sleep(1)
+        # time.sleep(1)
         raw_input('pause')
 except KeyboardInterrupt:
     quitGame()

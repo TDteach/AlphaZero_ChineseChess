@@ -10,6 +10,7 @@ from chess_zero.config import Config
 from chess_zero.env.chess_env import ChessEnv, Winner, maybe_flip_fen, maybe_flip_moves, flip_move
 from chess_zero.cchess.common import Move
 from chess_zero.cchess.chessboard import Chessboard
+from time import time
 
 logger = getLogger(__name__)
 
@@ -21,6 +22,7 @@ class VisitStats:
         self.sum_n = 0
         self.visit = []
         self.p = None
+        self.legal_moves = None
 
 
 class ActionStats:
@@ -126,6 +128,7 @@ class ChessPlayer:
             if state not in self.tree:
                 leaf_p, leaf_v = self.expand_and_evaluate(env)
                 self.tree[state].p = leaf_p
+                self.tree[state].legal_moves = state_moves(env)
                 return leaf_v # I'm returning everything from the POV of side to move
 
             if tid in self.tree[state].visit: # loop -> loss
@@ -133,7 +136,7 @@ class ChessPlayer:
 
             self.tree[state].visit.append(tid)
             # SELECT STEP
-            canon_action = self.select_action_q_and_u(state, env, is_root_node)
+            canon_action = self.select_action_q_and_u(state, is_root_node)
 
             virtual_loss = self.config.play.virtual_loss
             my_visit_stats = self.tree[state]
@@ -188,10 +191,12 @@ class ChessPlayer:
         return ret
 
     #@profile
-    def select_action_q_and_u(self, state, env, is_root_node) -> Move:
+    def select_action_q_and_u(self, state, is_root_node) -> Move:
+
 
         my_visitstats = self.tree[state]
-        legal_moves = state_moves(env)
+        legal_moves = my_visitstats.legal_moves
+
 
         if my_visitstats.p is not None: #push p, the prior probability to the edge (my_visitstats.p)
             tot_p = 0
@@ -211,6 +216,7 @@ class ChessPlayer:
 
         best_s = -999
         best_a = None
+
 
         for action in legal_moves:
             a_s = my_visitstats.a[action]
