@@ -35,7 +35,6 @@ class ChessModelAPI:
                         result_pipes.append(pipe)
                     except EOFError as e:
                         pipe.close()
-
             data = np.asarray(data, dtype=np.float32)
             policy_ary, value_ary = self.agent_model.model.predict_on_batch(data)
             for pipe, p, v in zip(result_pipes, policy_ary, value_ary):

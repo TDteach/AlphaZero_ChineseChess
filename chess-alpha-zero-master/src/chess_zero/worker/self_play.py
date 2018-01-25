@@ -114,7 +114,7 @@ def self_play_buffer(config, cur) -> (ChessEnv, list):
 
     history = []
 
-
+    cc = 0
     while not env.done:
         if env.white_to_move:
             action = white.action(env)
