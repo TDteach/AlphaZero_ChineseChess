@@ -42,14 +42,15 @@ class OptimizeWorker:
         self.compile_model()
 
         total_steps = self.config.trainer.start_total_steps
-
+        bef_files = []
         while True:
             files = get_game_data_filenames(self.config.resource)
-            if (len(files)*self.config.play_data.nb_game_in_file < 1000):
+            if (len(files)*self.config.play_data.nb_game_in_file < 1000 or len(files) < len(bef_files)+5):
                 print ('waiting for enough data 600s,    '+str(len(files)*self.config.play_data.nb_game_in_file)+' vs '+str(self.config.trainer.min_games_to_begin_learn)+' games')
                 time.sleep(600)
                 continue
             else:
+                bef_files = files
                 self.filenames = deque(files)
                 shuffle(self.filenames)
                 self.fill_queue()

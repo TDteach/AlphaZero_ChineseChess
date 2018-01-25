@@ -58,7 +58,7 @@ step = 0
 labels = create_uci_labels()
 move_lookup = {move: i for move, i in zip(labels, range(len(labels)))}
 
-def random_select_replay():
+def random_select_replay(idx=None): # idx from 1
     global all_replay
     global all_policy
     global all_values
@@ -66,8 +66,12 @@ def random_select_replay():
     global policy
     global values
     global ind_td
-    k = random.choice(range(len(ind_td)-1))
+    if idx is None:
+        k = random.choice(range(len(ind_td)-1))
+    else:
+        k=int(idx)-1
     print(ind_td)
+    print("now select game id: %d" % (k+1))
     replay = all_replay[ind_td[k]:ind_td[k + 1]]
     values = all_values[ind_td[k]:ind_td[k + 1]]
     policy = all_policy[ind_td[k]:ind_td[k + 1]]
@@ -81,6 +85,9 @@ if len(sys.argv) == 2 and sys.argv[1][:2] == '-r':
     files = os.listdir(replay_dir)
     files.sort()
     file_path = replay_dir+'/'+files[-1]
+    print('===============================================')
+    print('replay file: %s' % files[-1])
+    print('===============================================')
     try:
         with open(file_path, "rt") as f:
             data= json.load(f)
@@ -94,7 +101,7 @@ if len(sys.argv) == 2 and sys.argv[1][:2] == '-r':
         if all_replay[i] == all_replay[0]:
             ind_td.append(i)
     ind_td.append(len(all_replay))
-    random_select_replay()
+    random_select_replay(idx=11)
     #p = Popen("./harmless", stdin=PIPE, stdout=PIPE, close_fds=ON_POSIX)
     #(chessboard.fin, chessboard.fout) = (p.stdin, p.stdout)
 
