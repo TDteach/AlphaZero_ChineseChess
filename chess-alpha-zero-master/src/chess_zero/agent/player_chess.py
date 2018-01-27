@@ -224,6 +224,9 @@ class ChessPlayer:
             if is_root_node:
                 p_ = (1-e) * p_ + e * np.random.dirichlet([dir_alpha])
             b = a_s.q + c_puct * p_ * xx_ / (1 + a_s.n)
+            if a_s.q > (1-1e-7):
+                best_a = action
+                break
             if b > best_s:
                 best_s = b
                 best_a = action

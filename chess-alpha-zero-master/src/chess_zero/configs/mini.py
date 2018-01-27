@@ -30,7 +30,7 @@ class PlayConfig:
         self.simulation_num_per_move = 600 # before 1000
         self.thinking_loop = 1
         self.logging_thinking = False
-        self.c_puct = 1.5
+        self.c_puct = 1.5  #before 1.5
         self.noise_eps = 0.25
         self.dirichlet_alpha = 0.3
         self.tau_decay_rate = 0.99
