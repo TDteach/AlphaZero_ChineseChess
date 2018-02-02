@@ -69,7 +69,7 @@ class SelfPlayWorker:
                     self.flush_buffer()
                     if need_to_reload_best_model_weight(self.current_model):
                         need_to_renew_model = True
-                    self.remove_play_data(all=False) # remove old data
+                    #self.remove_play_data(all=False) # remove old data
                 if not need_to_renew_model: # avoid congestion
                     futures.append(executor.submit(self_play_buffer, self.config, cur=self.cur_pipes)) # Keep it going
 
@@ -100,7 +100,7 @@ class SelfPlayWorker:
         else:
             if len(files) < self.config.play_data.max_file_num:
                 return
-            for i in range(len(files) - self.config.play_data.max_file_num):
+            for i in range(len(files)/2):
                 os.remove(files[i])
 
 

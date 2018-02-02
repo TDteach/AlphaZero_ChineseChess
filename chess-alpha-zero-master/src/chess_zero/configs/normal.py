@@ -4,13 +4,13 @@ class EvaluateConfig:
         self.game_num = 50
         self.replace_rate = 0.55
         self.play_config = PlayConfig()
-        self.play_config.simulation_num_per_move = 600
+        self.play_config.simulation_num_per_move = 1000
         self.play_config.thinking_loop = 1
         self.play_config.c_puct = 1 # lower  = prefer mean action value
         self.play_config.tau_decay_rate = 0.6 # I need a better distribution...
         self.play_config.noise_eps = 0
         self.evaluate_latest_first = True
-        self.max_game_length = 100 # before: 1000
+        self.max_game_length = 200 # before: 1000
 
 
 class PlayDataConfig:
@@ -35,8 +35,8 @@ class PlayConfig:
         self.dirichlet_alpha = 0.3
         self.tau_decay_rate = 0.98
         self.virtual_loss = 3
-        self.resign_threshold = -0.8
-        self.min_resign_turn = 5
+        self.resign_threshold = -0.95
+        self.min_resign_turn = 20
         self.max_game_length = 200
 
 
@@ -47,7 +47,7 @@ class TrainerConfig:
         self.cleaning_processes = 4 # RAM explosion...
         self.vram_frac = 1.0
         self.batch_size = 1024 # tune this to your gpu memory
-        self.epoch_to_checkpoint = 5
+        self.epoch_to_checkpoint = 10
         self.dataset_size = 100000
         self.start_total_steps = 0
         self.save_model_steps = 25
