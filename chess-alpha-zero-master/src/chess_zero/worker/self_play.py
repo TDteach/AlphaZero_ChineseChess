@@ -69,7 +69,7 @@ class SelfPlayWorker:
                     self.flush_buffer()
                     if need_to_reload_best_model_weight(self.current_model):
                         need_to_renew_model = True
-                    #self.remove_play_data(all=False) # remove old data
+                    self.remove_play_data(all=False) # remove old data
                 if not need_to_renew_model: # avoid congestion
                     futures.append(executor.submit(self_play_buffer, self.config, cur=self.cur_pipes)) # Keep it going
 
@@ -98,10 +98,9 @@ class SelfPlayWorker:
             for path in files:
                 os.remove(path)
         else:
-            if len(files) < self.config.play_data.max_file_num:
-                return
-            for i in range(len(files)/2):
-                os.remove(files[i])
+            while len(files) > self.config.play_data.max_file_num:
+                os.remove(files[0])
+                del files[0]
 
 
 def self_play_buffer(config, cur) -> (ChessEnv, list):

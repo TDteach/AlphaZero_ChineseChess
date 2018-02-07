@@ -46,26 +46,30 @@ class OptimizeWorker:
         last_file = None
         while True:
             files = get_game_data_filenames(self.config.resource)
+            #if last_file is not None:
+            #    print(files.index(last_file))
+            #    print(len(bef_files))
             if (len(files)*self.config.play_data.nb_game_in_file < 1000 \
-              or (last_file is not None and files.index(last_file)+5 < len(bef_files))):
+              or ((last_file is not None) and files.index(last_file)+2 > len(files))):
                 print ('waiting for enough data 600s,    '+str(len(files)*self.config.play_data.nb_game_in_file)+' vs '+str(self.config.trainer.min_games_to_begin_learn)+' games')
                 time.sleep(600)
                 continue
             else:
                 last_file = files[-1]
                 bef_files = files
+                if (len(files) > 100):
+                    files = files[-100:]
                 self.filenames = deque(files)
-                #shuffle(self.filenames)
+                shuffle(self.filenames)
                 self.fill_queue()
                 if len(self.dataset[0]) > self.config.trainer.batch_size:
                     steps = self.train_epoch(self.config.trainer.epoch_to_checkpoint)
                     total_steps += steps
                     self.save_current_model()
                     a, b, c = self.dataset
-                    while len(a) > self.config.trainer.dataset_size/2:
-                        a.popleft()
-                        b.popleft()
-                        c.popleft()
+                    a.clear()
+                    b.clear()
+                    c.clear()
 
     def train_epoch(self, epochs):
         tc = self.config.trainer

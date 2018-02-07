@@ -24,8 +24,8 @@ class PlayDataConfig:
 
 class PlayConfig:
     def __init__(self):
-        self.max_processes = 10
-        self.search_threads = 20
+        self.max_processes = 9
+        self.search_threads = 18
         self.vram_frac = 1.0
         self.simulation_num_per_move = 2000
         self.thinking_loop = 1
@@ -35,7 +35,7 @@ class PlayConfig:
         self.dirichlet_alpha = 0.3
         self.tau_decay_rate = 0.98
         self.virtual_loss = 3
-        self.resign_threshold = -0.95
+        self.resign_threshold = -1.01
         self.min_resign_turn = 20
         self.max_game_length = 200
 
@@ -47,7 +47,7 @@ class TrainerConfig:
         self.cleaning_processes = 4 # RAM explosion...
         self.vram_frac = 1.0
         self.batch_size = 1024 # tune this to your gpu memory
-        self.epoch_to_checkpoint = 10
+        self.epoch_to_checkpoint = 3
         self.dataset_size = 100000
         self.start_total_steps = 0
         self.save_model_steps = 25
