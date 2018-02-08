@@ -7,6 +7,7 @@ from multiprocessing import Manager
 from threading import Thread
 from time import time
 from collections import defaultdict
+from threading import Lock
 
 from chess_zero.agent.model_chess import ChessModel
 from chess_zero.agent.player_chess import ChessPlayer, VisitStats
@@ -17,6 +18,10 @@ from chess_zero.lib.model_helper import load_best_model_weight, save_as_best_mod
     need_to_reload_best_model_weight
 
 logger = getLogger(__name__)
+job_done = Lock()
+thr_free = Lock()
+env = None
+data = None
 
 
 def start(config: Config):
@@ -35,9 +40,14 @@ class SelfPlayWorker:
         self.cur_pipes = self.m.list([self.current_model.get_pipes(self.config.play.search_threads) for _ in range(self.config.play.max_processes)])
 
     def start(self):
-        self.buffer = []
+        global job_done
+        global thr_free
+        global env
+        global data
 
+        self.buffer = []
         need_to_renew_model = True
+        job_done.acquire(True)
 
         futures = deque()
         with ProcessPoolExecutor(max_workers=self.config.play.max_processes) as executor:
@@ -49,9 +59,13 @@ class SelfPlayWorker:
                 if need_to_renew_model and len(futures) == 0:
                     load_best_model_weight(self.current_model)
                     for i in range(self.config.play.max_processes):
-                        futures.append(executor.submit(self_play_buffer, self.config, cur=self.cur_pipes))
+                        ff = executor.submit(self_play_buffer, self.config, cur=self.cur_pipes)
+                        ff.add_done_callback(recall_fn)
+                        futures.append(ff)
                     need_to_renew_model = False
-                env, data = futures.popleft().result()
+
+                job_done.acquire(True)
+                #env, data = futures.popleft().result()
 
                 if env.resigned:
                     resigned = 'by resign '
@@ -71,7 +85,10 @@ class SelfPlayWorker:
                         need_to_renew_model = True
                     self.remove_play_data(all=False) # remove old data
                 if not need_to_renew_model: # avoid congestion
-                    futures.append(executor.submit(self_play_buffer, self.config, cur=self.cur_pipes)) # Keep it going
+                    ff = executor.submit(self_play_buffer, self.config, cur=self.cur_pipes)
+                    ff.add_done_callback(recall_fn)
+                    futures.append(ff) # Keep it going
+                thr_free.release()
 
         if len(data) > 0:
             self.flush_buffer()
@@ -102,6 +119,15 @@ class SelfPlayWorker:
                 os.remove(files[0])
                 del files[0]
 
+def recall_fn(future):
+    global thr_free
+    global job_done
+    global env
+    global data
+
+    thr_free.acquire(True)
+    env, data = future.result()
+    job_done.release()
 
 def self_play_buffer(config, cur) -> (ChessEnv, list):
     pipes = cur.pop() # borrow

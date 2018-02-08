@@ -75,7 +75,7 @@ class EvaluateWorker:
 
                 logger.debug("game %3d: ng_score=%.1f as %s "
                              "%s"
-                             "%5.1f\n"
+                             "%5.2f\n"
                              "%s" % (game_idx, ng_score, player, resigned, win_rate, env.board.fen().split(' ')[0]))
 
                 # colors = ("current_model", "ng_model")
