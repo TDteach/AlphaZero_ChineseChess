@@ -50,6 +50,7 @@ class ChessPlayer:
         self.pipe_pool = pipes
 
         self.node_lock = defaultdict(Lock)
+       
 
 
         if search_tree is None:
@@ -152,7 +153,7 @@ class ChessPlayer:
             env.step(canon_action)
         else:
             env.step(flip_move(canon_action))
-        leaf_v = self.search_my_move(env,tid=tid)  # next move from enemy POV
+        leaf_v = self.search_my_move(env,False,tid)  # next move from enemy POV
         leaf_v = -leaf_v
 
         # BACKUP STEP

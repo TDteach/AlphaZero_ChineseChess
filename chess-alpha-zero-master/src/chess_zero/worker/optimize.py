@@ -50,7 +50,7 @@ class OptimizeWorker:
             #    print(files.index(last_file))
             #    print(len(bef_files))
             if (len(files)*self.config.play_data.nb_game_in_file < 1000 \
-              or ((last_file is not None) and files.index(last_file)+2 > len(files))):
+              or ((last_file is not None) and files.index(last_file)+3 > len(files))):
                 print ('waiting for enough data 600s,    '+str(len(files)*self.config.play_data.nb_game_in_file)+' vs '+str(self.config.trainer.min_games_to_begin_learn)+' games')
                 time.sleep(600)
                 continue

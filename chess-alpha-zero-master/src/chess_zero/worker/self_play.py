@@ -88,6 +88,8 @@ class SelfPlayWorker:
                     ff = executor.submit(self_play_buffer, self.config, cur=self.cur_pipes)
                     ff.add_done_callback(recall_fn)
                     futures.append(ff) # Keep it going
+                while len(futures) > 0 and futures[0].done():
+                    futures.popleft()
                 thr_free.release()
 
         if len(data) > 0:
