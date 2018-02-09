@@ -88,7 +88,7 @@ class SelfPlayWorker:
                     ff = executor.submit(self_play_buffer, self.config, cur=self.cur_pipes)
                     ff.add_done_callback(recall_fn)
                     futures.append(ff) # Keep it going
-                while len(futures) > 0 and futures[0].done():
+                while len(futures) > 0 and futures[0].cancelled():
                     futures.popleft()
                 thr_free.release()
 
@@ -129,6 +129,7 @@ def recall_fn(future):
 
     thr_free.acquire(True)
     env, data = future.result()
+    future.cancel()
     job_done.release()
 
 def self_play_buffer(config, cur) -> (ChessEnv, list):
