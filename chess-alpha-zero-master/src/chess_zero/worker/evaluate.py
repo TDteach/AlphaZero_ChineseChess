@@ -7,11 +7,10 @@ from collections import deque
 
 from chess_zero.agent.model_chess import ChessModel
 from chess_zero.agent.player_chess import ChessPlayer
-from chess_zero.config import Config
-from chess_zero.env.chess_env import ChessEnv, Winner
+from chess_zero.config import Config, INIT_STATE
+import chess_zero.env.chess_env as env
 from chess_zero.lib.data_helper import get_next_generation_model_dirs
 from chess_zero.lib.model_helper import save_as_best_model, load_best_model_weight
-import time
 
 logger = getLogger(__name__)
 
@@ -29,8 +28,8 @@ class EvaluateWorker:
         self.current_model = self.load_current_model()
         self.ng_model = ChessModel(self.config)
         self.m = Manager()
-        self.cur_pipes = self.m.list([self.current_model.get_pipes(self.play_config.search_threads) for _ in range(self.play_config.max_processes)])
-        self.ng_pipes = self.m.list([self.ng_model.get_pipes(self.play_config.search_threads) for _ in range(self.play_config.max_processes)])
+        self.cur_pipes = self.m.list([self.current_model.get_pipe() for _ in range(self.play_config.max_processes)])
+        self.ng_pipes = self.m.list([self.ng_model.get_pipe() for _ in range(self.play_config.max_processes)])
         self.model_list = []
         self.history_list = []
 
@@ -59,7 +58,7 @@ class EvaluateWorker:
             for game_idx in range(self.config.eval.game_num):
                 # ng_score := if ng_model win -> 1, lose -> 0, draw -> 0.5
                 fut = futures.popleft()
-                ng_score, env, current_white = fut.result()
+                ng_score, current_white = fut.result()
                 results.append(ng_score)
                 win_rate = sum(results) / len(results)
                 game_idx = len(results)
@@ -67,21 +66,10 @@ class EvaluateWorker:
                 if (current_white):
                     player = 'red'
                 else:
-                    player = 'black'
-                if (env.resigned):
-                    resigned = 'by resign '
-                else:
-                    resigned = '          '
+                    player = 'black'          '
 
                 logger.debug("game %3d: ng_score=%.1f as %s "
-                             "%s"
-                             "%5.2f\n"
-                             "%s" % (game_idx, ng_score, player, resigned, win_rate, env.board.fen().split(' ')[0]))
-
-                # colors = ("current_model", "ng_model")
-                # if not current_white:
-                #     colors = reversed(colors)
-                # pretty_print(env, colors)
+                             "%5.2f\n" % (game_idx, ng_score, player, win_rate))
 
                 if len(results)-sum(results) >= self.config.eval.game_num * (1-self.config.eval.replace_rate):
                     logger.debug("lose count reach %d so give up challenge" % (results.count(0)))
@@ -135,33 +123,43 @@ class EvaluateWorker:
         return model_dir, config_path, weight_path
 
 
-def play_game(config, cur, ng, current_white: bool) -> (float, ChessEnv, bool):
-    cur_pipes = cur.pop()
-    ng_pipes = ng.pop()
-    env = ChessEnv().reset()
+def play_game(config, cur, ng, current_white: bool) -> (float, bool):
+    cur_pipe = cur.pop()
+    ng_pipe = ng.pop()
 
-    current_player = ChessPlayer(config, pipes=cur_pipes, play_config=config.eval.play_config)
-    ng_player = ChessPlayer(config, pipes=ng_pipes, play_config=config.eval.play_config)
+    current_player = ChessPlayer(config, pipe=cur_pipe, play_config=config.eval.play_config)
+    ng_player = ChessPlayer(config, pipe=ng_pipe, play_config=config.eval.play_config)
     if current_white:
         white, black = current_player, ng_player
     else:
         white, black = ng_player, current_player
 
-    while not env.done:
-        if env.white_to_move:
-            action = white.action(env)
-        else:
-            action = black.action(env)
-        env.step(action)
-        if env.num_halfmoves >= config.eval.max_game_length:
-            env.adjudicate()
+    state = INIT_STATE
+    steps = 0
+    v = 0
 
-    if env.winner == Winner.draw:
-        ng_score = 0.5
-    elif env.white_won == current_white:
+    while v == 0:
+        if (steps%2) == 0:
+            action, policy = white.action(state, steps)
+        else:
+            action, policy = black.action(state, steps)
+        state = env.step(state, action)
+        steps += 1
+        v = env.testeval(state)
+        if steps >= config.eval.max_game_length:
+            v = env.testeval(state)
+        else:
+            v = env.game_over(state)
+
+    white.close()
+    black.close()
+
+    if v > 0.001:
+        ng_score = 1
+    elif v < -0.001:
         ng_score = 0
     else:
-        ng_score = 1
-    cur.append(cur_pipes)
-    ng.append(ng_pipes)
-    return ng_score, env, current_white
+        ng_score = 0.5
+    cur.append(cur_pipe)
+    ng.append(ng_pipe)
+    return ng_score, current_white

@@ -18,7 +18,7 @@ class ChessModelAPI:
         prediction_worker.start()
 
     def get_pipe(self):
-        me, you = Pipe()
+        me, you = Pipe(True)
         self.pipes.append(me)
         return you
 
@@ -27,15 +27,25 @@ class ChessModelAPI:
             ready = connection.wait(self.pipes,timeout=0.001)
             if not ready:
                 continue
-            data, result_pipes = [], []
+            data, result_pipes, ss = [], [], []
             for pipe in ready:
-                while pipe.poll():
-                    try:
-                        data.append(pipe.recv())
-                        result_pipes.append(pipe)
-                    except EOFError as e:
-                        pipe.close()
-            data = np.asarray(data, dtype=np.float32)
-            policy_ary, value_ary = self.agent_model.model.predict_on_batch(data)
-            for pipe, p, v in zip(result_pipes, policy_ary, value_ary):
-                pipe.send((p, float(v)))
+                try:
+                    tmp = pipe.recv()
+                except EOFError as e:
+                    print('Bug Bug Bug')
+                data.extend(tmp)
+                ss.append(len(tmp))
+                result_pipes.append(pipe)
+            t_data = np.asarray(data, dtype=np.float32)
+            policy_ary, value_ary = self.agent_model.model.predict_on_batch(t_data)
+            tt = list()
+            k = 0
+            i = 0
+            for p,v in zip(policy_ary, value_ary):
+                tt.append((p,float(v)))
+                k = k+1
+                if (k >= ss[i]) :
+                    result_pipes[i].send(tt)
+                    tt = list()
+                    i = i+1
+                    k = 0

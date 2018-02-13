@@ -42,13 +42,9 @@ class OptimizeWorker:
         self.compile_model()
 
         total_steps = self.config.trainer.start_total_steps
-        bef_files = []
         last_file = None
         while True:
             files = get_game_data_filenames(self.config.resource)
-            #if last_file is not None:
-            #    print(files.index(last_file))
-            #    print(len(bef_files))
             if (len(files)*self.config.play_data.nb_game_in_file < 1000 \
               or ((last_file is not None) and files.index(last_file)+3 > len(files))):
                 print ('waiting for enough data 600s,    '+str(len(files)*self.config.play_data.nb_game_in_file)+' vs '+str(self.config.trainer.min_games_to_begin_learn)+' games')
@@ -56,7 +52,6 @@ class OptimizeWorker:
                 continue
             else:
                 last_file = files[-1]
-                bef_files = files
                 if (len(files) > 100):
                     files = files[-100:]
                 self.filenames = deque(files)
@@ -162,16 +157,8 @@ def convert_to_cheating_data(data):
 
         state_planes = canon_input_planes(state_fen)
 
-        if is_black_turn(state_fen):
-            policy = Config.flip_policy(policy)
-
-        move_number = int(state_fen.split(' ')[5])
-        value_certainty = min(5, move_number)/5 # reduces the noise of the opening... plz train faster
-        # sl_value = value*value_certainty + testeval(state_fen, False)*(1-value_certainty)
-        sl_value = value
-
         state_list.append(state_planes)
         policy_list.append(policy)
-        value_list.append(sl_value)
+        value_list.append(value)
 
     return np.asarray(state_list, dtype=np.float32), np.asarray(policy_list, dtype=np.float32), np.asarray(value_list, dtype=np.float32)

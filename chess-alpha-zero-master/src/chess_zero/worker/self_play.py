@@ -8,11 +8,12 @@ from threading import Thread
 from time import time
 from collections import defaultdict
 from threading import Lock
+from time import sleep
 
 from chess_zero.agent.model_chess import ChessModel
 from chess_zero.agent.player_chess import ChessPlayer, VisitStats
-from chess_zero.config import Config
-from chess_zero.env.chess_env import ChessEnv, Winner
+from chess_zero.config import Config, INIT_STATE
+import chess_zero.env.chess_env as env
 from chess_zero.lib.data_helper import get_game_data_filenames, write_game_data_to_file
 from chess_zero.lib.model_helper import load_best_model_weight, save_as_best_model, \
     need_to_reload_best_model_weight
@@ -20,8 +21,9 @@ from chess_zero.lib.model_helper import load_best_model_weight, save_as_best_mod
 logger = getLogger(__name__)
 job_done = Lock()
 thr_free = Lock()
-env = None
+rst = None
 data = None
+futures =[]
 
 
 def start(config: Config):
@@ -37,19 +39,19 @@ class SelfPlayWorker:
         self.config = config
         self.current_model = self.load_model()
         self.m = Manager()
-        self.cur_pipes = self.m.list([self.current_model.get_pipes(self.config.play.search_threads) for _ in range(self.config.play.max_processes)])
+        self.cur_pipes = self.m.list([self.current_model.get_pipe() for _ in range(self.config.play.max_processes)])
 
     def start(self):
         global job_done
         global thr_free
-        global env
+        global rst
         global data
+        global futures
 
         self.buffer = []
         need_to_renew_model = True
         job_done.acquire(True)
 
-        futures = deque()
         with ProcessPoolExecutor(max_workers=self.config.play.max_processes) as executor:
             game_idx = 0
             while True:
@@ -65,16 +67,9 @@ class SelfPlayWorker:
                     need_to_renew_model = False
 
                 job_done.acquire(True)
-                #env, data = futures.popleft().result()
 
-                if env.resigned:
-                    resigned = 'by resign '
-                else:
-                    resigned = '          '
                 print("game %3d time=%5.1fs "
-                    "%3d %s "
-                    "%s" % (game_idx, time() - start_time, env.num_halfmoves, env.winner, resigned))
-
+                    "%3d %d " % (game_idx, time() - start_time, rst[0], rst[1]))
                 print('game %3d time=%5.1fs ' % (game_idx, time()-start_time))
 
                 self.buffer += data
@@ -88,8 +83,6 @@ class SelfPlayWorker:
                     ff = executor.submit(self_play_buffer, self.config, cur=self.cur_pipes)
                     ff.add_done_callback(recall_fn)
                     futures.append(ff) # Keep it going
-                while len(futures) > 0 and futures[0].cancelled():
-                    futures.popleft()
                 thr_free.release()
 
         if len(data) > 0:
@@ -124,53 +117,54 @@ class SelfPlayWorker:
 def recall_fn(future):
     global thr_free
     global job_done
-    global env
+    global rst
     global data
+    global futures
 
     thr_free.acquire(True)
-    env, data = future.result()
-    future.cancel()
+    rst, data = future.result()
+    futures.remove(future)
     job_done.release()
 
-def self_play_buffer(config, cur) -> (ChessEnv, list):
-    pipes = cur.pop() # borrow
-    env = ChessEnv().reset()
-    search_tree = defaultdict(VisitStats)
+def self_play_buffer(config, cur) -> (tuple, list):
+    pipe = cur.pop() # borrow
 
-    white = ChessPlayer(config, search_tree=search_tree, pipes=pipes)
-    black = ChessPlayer(config, search_tree=search_tree, pipes=pipes)
+    player = ChessPlayer(config, pipe=pipe)
 
-    history = []
+    state = INIT_STATE
+    history = [state]
+    policys = []
 
     cc = 0
-    while not env.done:
-        if env.white_to_move:
-            action = white.action(env)
-        else:
-            action = black.action(env)
-        env.step(action)
+    v = 0
+    steps = 0
+    while v == 0:
+        action, policy = player.action(state, steps)
+        policys.append(policy)
         history.append(action)
-        if len(history) > 6 and history[-1] == history[-5]:
-            cc = cc + 1
+        state = env.step(state, action)
+        steps += 1
+        if state in history:
+            cc = 5
+        history.append(state)
+        if steps >= config.play.max_game_length or cc >= 4:
+            v = env.testeval(state)
+            break
         else:
-            cc = 0
-        if env.num_halfmoves >= config.play.max_game_length or cc >= 4:
-            env.adjudicate()
-    if env.winner == Winner.white:
-        black_win = -1
-    elif env.winner == Winner.black:
-        black_win = 1
-    else:
-        black_win = 0
+            v = env.game_over(state)
 
-    black.finish_game(black_win)
-    white.finish_game(-black_win)
+    player.close()
 
+    if (steps%2) == 1:
+        v = -v
+    vv = v
     data = []
-    for i in range(len(white.moves)):
-        data.append(white.moves[i])
-        if i < len(black.moves):
-            data.append(black.moves[i])
+    for i in range(steps):
+        k = i*2
+        data.append([history[k], policys[i], v])
+        v = -v
 
-    cur.append(pipes)
-    return env, data
+    sleep(10)
+
+    cur.append(pipe)
+    return (steps, vv), data

@@ -1,16 +1,14 @@
 from collections import defaultdict
 from concurrent.futures import ThreadPoolExecutor
 from logging import getLogger
-from threading import Lock
+from threading import Lock, Condition
 
 # import chess
 import numpy as np
 
-from chess_zero.config import Config
-from chess_zero.env.chess_env import ChessEnv, Winner, maybe_flip_fen, maybe_flip_moves, flip_move
-from chess_zero.cchess.common import Move
-from chess_zero.cchess.chessboard import Chessboard
-from time import time
+from chess_zero.config import Config, INIT_STATE
+import chess_zero.env.chess_env as env
+from time import sleep
 
 logger = getLogger(__name__)
 
@@ -23,6 +21,7 @@ class VisitStats:
         self.visit = []
         self.p = None
         self.legal_moves = None
+        self.waiting = False
 
 
 class ActionStats:
@@ -31,11 +30,12 @@ class ActionStats:
         self.w = 0
         self.q = 0
         self.p = -1
+        self.next = None
 
 
 class ChessPlayer:
     # dot = False
-    def __init__(self, config: Config, search_tree=None, pipes=None, play_config=None, dummy=False):
+    def __init__(self, config: Config, search_tree=None, pipe=None, play_config=None, dummy=False):
         self.moves = []
 
         self.config = config
@@ -47,164 +47,189 @@ class ChessPlayer:
         if dummy:
             return
 
-        self.pipe_pool = pipes
+        self.pipe = pipe
 
         self.node_lock = defaultdict(Lock)
-       
+
+        self.s_lock = Lock()
+        self.run_lock = Lock()
+        self.q_lock = Lock()
+        self.t_lock = Lock()
+        self.buffer_planes = []
+        self.buffer_history = []
+
+        self.all_done = Lock()
+        self.num_task = 0
+
+        self.job_done = False
+
+        self.executor = ThreadPoolExecutor(max_workers=self.play_config.search_threads+2)
+        self.executor.submit(self.receiver)
+        self.executor.submit(self.sender)
 
 
         if search_tree is None:
-            self.reset()
+            self.tree = defaultdict(VisitStats)
         else:
             self.tree = search_tree
 
-    def reset(self):
-        self.tree = defaultdict(VisitStats)
+    def close(self):
+        self.job_done = True
+        if self.executor is not None:
+            self.executor.shutdown()
 
-    def deboog(self, env):
-        print(env.testeval())
+    def action(self, state:str, n_step:int) -> (str, list):
+        self.all_done.acquire(True)
 
-        state = state_key(env)
-        my_visit_stats = self.tree[state]
-        stats = []
-        for action, a_s in my_visit_stats.a.items():
-            moi = self.move_lookup[action]
-            stats.append(np.asarray([a_s.n, a_s.w, a_s.q, a_s.p, moi]))
-        stats = np.asarray(stats)
-        a = stats[stats[:,0].argsort()[::-1]]
+        self.num_task = self.play_config.simulation_num_per_move
+        for i in range(self.play_config.simulation_num_per_move):
+            self.executor.submit(self.search_my_move, state, [state])
 
-        for s in a:
-            # print(f'{self.labels[int(s[4])]:5}: '
-            #       f'n: {s[0]:3.0f} '
-            #       f'w: {s[1]:7.3f} '
-            #       f'q: {s[2]:7.3f} '
-            #       f'p: {s[3]:7.5f}')
-            print('%5d:' % (self.labels[int(s[4])]))
-            print('%3.0f:' % (s[0]))
-            print('%7.3f:' % (s[1]))
-            print('%7.3f:' % (s[2]))
-            print('%7.5f:' % (s[3]))
+        self.all_done.acquire(True)
+        self.all_done.release()
 
-    def action(self, env, can_stop = True) -> str:
-        #self.reset()
+        policy = self.calc_policy(state)
+        my_action = int(np.random.choice(range(self.labels_n), p=self.apply_temperature(policy, n_step)))
 
-        # for tl in range(self.play_config.thinking_loop):
-        root_value, naked_value = self.search_moves(env)
-        policy = self.calc_policy(env)
-        my_action = int(np.random.choice(range(self.labels_n), p=self.apply_temperature(policy, env.num_halfmoves)))
-
-        if can_stop and self.play_config.resign_threshold is not None and \
-                        root_value <= self.play_config.resign_threshold \
-                        and env.num_halfmoves > self.play_config.min_resign_turn:
-            # noinspection PyTypeChecker
-            return None  #for resign return None
-        else:
-            self.moves.append([env.observation, list(policy)])
-            return self.config.labels[my_action]
-
-    def search_moves(self, env) -> (float, float):
-        futures = []
-        with ThreadPoolExecutor(max_workers=self.play_config.search_threads) as executor:
-            for i in range(self.play_config.simulation_num_per_move):
-                futures.append(executor.submit(self.search_my_move,env=env.copy(),is_root_node=True, tid=i))
-
-        vals = [f.result() for f in futures]
-
-        return np.max(vals), vals[0] # vals[0] is kind of racy
-
-    def search_my_move(self, env: ChessEnv, is_root_node=False, tid=0) -> float:  #dfs to the leaf and back up
-        """
-        Q, V is value for this Player(always white).
-        P is value for the player of next_player (black or white)
-        :return: leaf value
-        """
-        if env.done:
-            if env.winner == Winner.draw:
-                return 0
-            return -1
-
-        state = state_key(env)
-
-        with self.node_lock[state]:
-            if state not in self.tree:
-                leaf_p, leaf_v = self.expand_and_evaluate(env)
-                self.tree[state].p = leaf_p
-                self.tree[state].legal_moves = state_moves(env)
-                return leaf_v # I'm returning everything from the POV of side to move
-
-            if tid in self.tree[state].visit: # loop -> loss
-                return 0
-
-            self.tree[state].visit.append(tid)
-            # SELECT STEP
-            canon_action = self.select_action_q_and_u(state, is_root_node)
-
-            virtual_loss = self.config.play.virtual_loss
-            my_visit_stats = self.tree[state]
-            my_visit_stats.sum_n += virtual_loss
-
-            my_stats = my_visit_stats.a[canon_action]
-            my_stats.n += virtual_loss
-            my_stats.w -= virtual_loss
-            my_stats.q = my_stats.w / my_stats.n
+        return self.config.labels[my_action], list(policy)
 
 
-        if env.white_to_move:
-            env.step(canon_action)
-        else:
-            env.step(flip_move(canon_action))
-        leaf_v = self.search_my_move(env,False,tid)  # next move from enemy POV
-        leaf_v = -leaf_v
+    def search_my_move(self, state:str, history=[]):  #dfs to the leaf and back up
 
-        # BACKUP STEP
-        # on returning search path
-        # update: N, W, Q
-        with self.node_lock[state]:
-            my_visit_stats = self.tree[state]
-            my_visit_stats.visit.remove(tid)
-            my_visit_stats.sum_n += 1 - virtual_loss
+        while True:
+            v = env.game_over(state)
+            if v != 0:
+                self.executor.submit(self.update_tree, None, v, history)
+                break
+
+            with self.node_lock[state]:
+                if state not in self.tree:
+                    self.tree[state].waiting = True
+                    self.tree[state].legal_moves = env.legal_moves(state)
+                    self.expand_and_evaluate(state, history)
+                    break
+
+                if state in history[:-1]: # loop -> loss
+                    self.executor.submit(self.update_tree, None, 0, history)
+                    break
+
+                my_visit_stats = self.tree[state]
+                if my_visit_stats.waiting:
+                    my_visit_stats.visit.append(history)
+                    break
+
+                # SELECT STEP
+                canon_action = self.select_action_q_and_u(state, state==INIT_STATE)
 
 
-            my_stats = my_visit_stats.a[canon_action]
-            my_stats.n += 1 - virtual_loss
-            my_stats.w += leaf_v + virtual_loss
-            my_stats.q = my_stats.w / my_stats.n
+                my_visit_stats = self.tree[state]
+                my_visit_stats.sum_n += 1
 
-        return leaf_v
+                my_stats = my_visit_stats.a[canon_action]
+                my_stats.n += 1
+                my_stats.w += 0
+                my_stats.q = my_stats.w / my_stats.n
 
-    def expand_and_evaluate(self, env) -> (np.ndarray, float):
+                if my_stats.next is None:
+                    my_stats.next = env.step(state, canon_action)
+
+            history.append(canon_action)
+            state = my_stats.next
+            history.append(state)
+
+
+
+    def sender(self):
+        limit = 256
+        while not self.job_done:
+            self.run_lock.acquire()
+            # print('acquired')
+            with self.q_lock:
+                l = min(limit, len(self.buffer_history))
+                if l > 0:
+                    t_data = self.buffer_planes[0:l]
+                    # print('send %d' % (l))
+                    self.pipe.send(t_data)
+                else:
+                    # print('released  wait %d' % (self.num_task))
+                    self.run_lock.release()
+                    sleep(0.001)
+
+    def receiver(self):
+        while not self.job_done:
+            if self.pipe.poll(0.001):
+                rets = self.pipe.recv()
+            else:
+                continue
+            k = 0
+            with self.q_lock:
+                for ret in rets:
+                    self.executor.submit(self.update_tree, ret[0], ret[1], self.buffer_history[k])
+                    k = k+1
+                # print('api recv %d' % (k))
+                self.buffer_planes = self.buffer_planes[k:]
+                self.buffer_history = self.buffer_history[k:]
+            # print('released')
+            self.run_lock.release()
+
+    def update_tree(self, p, v, history):
+        state = history.pop()
+        if p is not None:
+            with self.node_lock[state]:
+                self.tree[state].p = p
+                self.tree[state].waiting = False
+                for hist in self.tree[state].visit:
+                    self.executor.submit(self.search_my_move, state, hist)
+                self.tree[state].visit = []
+
+        while len(history) > 0:
+            action = history.pop()
+            state = history.pop()
+            v = -v
+            with self.node_lock[state]:
+                my_visit_stats = self.tree[state]
+                my_stats = my_visit_stats.a[action]
+                my_stats.w += v
+                my_stats.q = my_stats.w / my_stats.n
+
+
+        with self.t_lock:
+            self.num_task -= 1
+            if (self.num_task <= 0):
+                self.all_done.release()
+
+
+
+
+    def expand_and_evaluate(self, state:str, history:str):
         """ expand new leaf, this is called only once per state
         this is called with state locked
         insert P(a|s), return leaf_v
         """
-        state_planes = env.canonical_input_planes()
+        state_planes = env.canon_input_planes(state)
+        with self.q_lock:
+            self.buffer_planes.append(state_planes)
+            self.buffer_history.append(history)
 
-        leaf_p, leaf_v = self.predict(state_planes)
-        # these are canonical policy and value (i.e. side to move is "white")
-
-        return leaf_p, leaf_v
-
-    def predict(self, state_planes):
-        pipe = self.pipe_pool.pop()
-        pipe.send(state_planes)
-        ret = pipe.recv()
-        self.pipe_pool.append(pipe)
-        return ret
 
     #@profile
-    def select_action_q_and_u(self, state, is_root_node) -> Move:
-
+    def select_action_q_and_u(self, state, is_root_node) -> str:
 
         my_visitstats = self.tree[state]
         legal_moves = my_visitstats.legal_moves
 
 
+
         if my_visitstats.p is not None: #push p, the prior probability to the edge (my_visitstats.p)
+
+
             tot_p = 0
             for mov in legal_moves:
                 mov_p = my_visitstats.p[self.move_lookup[mov]]
                 my_visitstats.a[mov].p = mov_p
                 tot_p += mov_p
+
+
             for mov in legal_moves:
                 my_visitstats.a[mov].p /= tot_p
             my_visitstats.p = None # release the temp policy
@@ -218,16 +243,12 @@ class ChessPlayer:
         best_s = -999
         best_a = None
 
-
         for action in legal_moves:
             a_s = my_visitstats.a[action]
             p_ = a_s.p
             if is_root_node:
                 p_ = (1-e) * p_ + e * np.random.dirichlet([dir_alpha])
             b = a_s.q + c_puct * p_ * xx_ / (1 + a_s.n)
-            if a_s.q > (1-1e-7):
-                best_a = action
-                break
             if b > best_s:
                 best_s = b
                 best_a = action
@@ -248,11 +269,10 @@ class ChessPlayer:
             ret /= np.sum(ret)
             return ret
 
-    def calc_policy(self, env):
+    def calc_policy(self, state):
         """calc π(a|s0)
         :return:
         """
-        state = state_key(env)
         my_visitstats = self.tree[state]
         policy = np.zeros(self.labels_n)
         for action, a_s in my_visitstats.a.items():
@@ -260,37 +280,5 @@ class ChessPlayer:
 
         policy /= np.sum(policy)
 
-        if not env.white_to_move:
-            policy = Config.flip_policy(policy)
         return policy
 
-    def sl_action(self, observation, my_action, weight=1):
-        policy = np.zeros(self.labels_n)
-
-        k = self.move_lookup[Move.from_uci(my_action)]
-        policy[k] = weight
-
-        self.moves.append([observation, list(policy)])
-        return my_action
-
-    def finish_game(self, z):
-        """
-        :param self:
-        :param z: win=1, lose=-1, draw=0
-        :return:
-        """
-        for move in self.moves:  # add this game winner result to all past moves.
-            move += [z]
-
-
-def state_key(env: ChessEnv) -> str:
-    fen = env.board.fen()
-    fen = maybe_flip_fen(fen)
-    fen = fen.split(' ') # drop the move clock
-    return fen[0]
-
-def state_moves(env: ChessEnv):
-    moves = env.board.legal_moves
-    if not env.white_to_move:
-        moves = maybe_flip_moves(moves, flip=True)
-    return moves

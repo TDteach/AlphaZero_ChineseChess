@@ -40,6 +40,12 @@ class ChessModel:
             self.api.start()
         return [self.api.get_pipe() for _ in range(num)]
 
+    def get_pipe(self):
+        if self.api is None:
+            self.api = ChessModelAPI(self.config, self)
+            self.api.start()
+        return self.api.get_pipe()
+
     def build(self):
         mc = self.config.model
         # in_x = x = Input((18, 8, 8))
