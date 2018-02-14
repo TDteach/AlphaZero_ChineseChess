@@ -22,6 +22,7 @@ job_done = Lock()
 thr_free = Lock()
 env = None
 data = None
+futures = []
 
 
 def start(config: Config):
@@ -44,12 +45,13 @@ class SelfPlayWorker:
         global thr_free
         global env
         global data
+        global futures
 
         self.buffer = []
         need_to_renew_model = True
         job_done.acquire(True)
 
-        futures = deque()
+        futures = []
         with ProcessPoolExecutor(max_workers=self.config.play.max_processes) as executor:
             game_idx = 0
             while True:
@@ -88,8 +90,6 @@ class SelfPlayWorker:
                     ff = executor.submit(self_play_buffer, self.config, cur=self.cur_pipes)
                     ff.add_done_callback(recall_fn)
                     futures.append(ff) # Keep it going
-                while len(futures) > 0 and futures[0].cancelled():
-                    futures.popleft()
                 thr_free.release()
 
         if len(data) > 0:
@@ -126,10 +126,11 @@ def recall_fn(future):
     global job_done
     global env
     global data
+    global futures
 
     thr_free.acquire(True)
     env, data = future.result()
-    future.cancel()
+    futures.remove(future)
     job_done.release()
 
 def self_play_buffer(config, cur) -> (ChessEnv, list):
