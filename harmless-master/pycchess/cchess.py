@@ -58,6 +58,17 @@ step = 0
 labels = create_uci_labels()
 move_lookup = {move: i for move, i in zip(labels, range(len(labels)))}
 
+def flip_state(state):
+    rows = state.split('/')
+    def swapcase(a):
+        if a.isalpha():
+            return a.lower() if a.isupper() else a.upper()
+        return a
+    def swapall(aa):
+        return "".join([swapcase(a) for a in aa])
+
+    return "/".join([swapall(row) for row in reversed(rows)])
+
 def random_select_replay(idx=None): # idx from 1
     global all_replay
     global all_policy
@@ -72,9 +83,24 @@ def random_select_replay(idx=None): # idx from 1
         k=int(idx)-1
     print(ind_td)
     print("now select game id: %d" % (k+1))
-    replay = all_replay[ind_td[k]:ind_td[k + 1]]
+    replay = []
+
+    print(ind_td[k+1])
+    print(ind_td[k])
+    print(all_replay[ind_td[k+1]])
+
+    for i in range(ind_td[k+1]-ind_td[k]):
+        rr = all_replay[ind_td[k]+i]
+        if (i%2) > 0:
+            rr = flip_state(rr)
+        # print(rr)
+        replay.append(rr)
+    # replay = all_replay[ind_td[k]:ind_td[k + 1]]
     values = all_values[ind_td[k]:ind_td[k + 1]]
     policy = all_policy[ind_td[k]:ind_td[k + 1]]
+
+
+
 
 if len(sys.argv) == 2 and sys.argv[1][:2] == '-r':
     global all_replay
@@ -153,6 +179,7 @@ chessboard.fen_parse(fen_str)
 init = True
 waiting = False
 moved = False
+
 
 def fertilize(compact):
     compact = compact.replace('9', '.........')
