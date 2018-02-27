@@ -71,7 +71,7 @@ class EvaluateWorker:
                 futures.append(fut)
 
             results = []
-            while len(futures) > 0:
+            while True:
                 job_done.acquire(True)
 
 
@@ -99,6 +99,8 @@ class EvaluateWorker:
                     futures.append(fut)
 
                 thr_free.release()
+                if len(futures) == 0:
+                    break
 
         win_rate = sum(results) / len(results)
         logger.debug("winning rate %.1f" % win_rate*100)
