@@ -13,7 +13,11 @@ from chess_zero.lib.data_helper import get_next_generation_model_dirs
 from chess_zero.lib.model_helper import save_as_best_model, load_best_model_weight
 
 logger = getLogger(__name__)
-
+job_done = Lock()
+thr_free = Lock()
+ng_score = None
+cut_white = None
+futures =[]
 
 def start(config: Config):
     return EvaluateWorker(config).start()
@@ -47,36 +51,55 @@ class EvaluateWorker:
             # self.move_model(model_dir)
 
     def evaluate_model(self):
+        global futures
+        global job_done
+        global thr_free
+        global ng_score
+        global cut_white
 
-        futures = deque()
+        job_done.acquire(True)
+
+        game_idx = 0
+        futures = []
+
         with ProcessPoolExecutor(max_workers=self.play_config.max_processes) as executor:
-            for game_idx in range(self.config.eval.game_num):
+            for k in range(self.config.eval.game_num):
                 fut = executor.submit(play_game, self.config, cur=self.cur_pipes, ng=self.ng_pipes, current_white=(game_idx % 2 == 0))
+                game_idx += 1
+                fut.add_done_callback(recall_fn)
                 futures.append(fut)
 
             results = []
-            for game_idx in range(self.config.eval.game_num):
-                # ng_score := if ng_model win -> 1, lose -> 0, draw -> 0.5
-                fut = futures.popleft()
-                ng_score, current_white = fut.result()
+            for k in range(self.config.eval.game_num):
+                job_done.acquire(True)
+
+
                 results.append(ng_score)
                 win_rate = sum(results) / len(results)
-                game_idx = len(results)
 
-                if (current_white):
-                    player = 'red'
-                else:
+                if (cut_white):
                     player = 'black'
+                else:
+                    player = 'red'
 
                 logger.debug("game %3d: ng_score=%.1f as %s "
-                             "%5.2f\n" % (game_idx, ng_score, player, win_rate))
+                             "%5.2f\n" % (k, ng_score, player, win_rate))
+
 
                 if len(results)-sum(results) >= self.config.eval.game_num * (1-self.config.eval.replace_rate):
                     logger.debug("lose count reach %d so give up challenge" % (results.count(0)))
-                    return False
-                if sum(results) >= self.config.eval.game_num * self.config.eval.replace_rate:
+                elif sum(results) >= self.config.eval.game_num * self.config.eval.replace_rate:
                     logger.debug("win count reach %d so change best model" % (results.count(1)))
-                    return True
+                else:
+                    fut = executor.submit(play_game, self.config, cur=self.cur_pipes, ng=self.ng_pipes,
+                                          current_white=(game_idx % 2 == 0))
+                    game_idx += 1
+                    fut.add_done_callback(recall_fn)
+                    futures.append(fut)
+
+                thr_free.release()
+                if len(futures) == 0:
+                    break
 
         win_rate = sum(results) / len(results)
         logger.debug("winning rate %.1f" % win_rate*100)
@@ -122,6 +145,18 @@ class EvaluateWorker:
         self.ng_model.load(config_path, weight_path)
         return model_dir, config_path, weight_path
 
+def recall_fn(future):
+    global thr_free
+    global job_done
+    global ng_score
+    global cut_white
+    global futures
+
+    thr_free.acquire(True)
+    ng_score, cut_white = future.result()
+    futures.remove(future)
+    job_done.release()
+
 
 def play_game(config, cur, ng, current_white: bool) -> (float, bool):
     cur_pipe = cur.pop()
@@ -145,7 +180,6 @@ def play_game(config, cur, ng, current_white: bool) -> (float, bool):
             action, policy = black.action(state, steps)
         state = env.step(state, action)
         steps += 1
-        v = env.testeval(state)
         if steps >= config.eval.max_game_length:
             v = env.testeval(state)
         else:
