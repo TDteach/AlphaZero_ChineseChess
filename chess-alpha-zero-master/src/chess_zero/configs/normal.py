@@ -1,10 +1,10 @@
 class EvaluateConfig:
     def __init__(self):
         self.vram_frac = 1.0
-        self.game_num = 37
-        self.replace_rate = 0.54
+        self.game_num = 50
+        self.replace_rate = 0.55
         self.play_config = PlayConfig()
-        self.play_config.simulation_num_per_move = 600
+        self.play_config.simulation_num_per_move = 1600
         self.play_config.thinking_loop = 1
         self.play_config.c_puct = 1 # lower  = prefer mean action value
         self.play_config.tau_decay_rate = 0.6 # I need a better distribution...
@@ -24,8 +24,8 @@ class PlayDataConfig:
 
 class PlayConfig:
     def __init__(self):
-        self.max_processes = 9
-        self.search_threads = 18
+        self.max_processes = 8
+        self.search_threads = 10
         self.vram_frac = 1.0
         self.simulation_num_per_move = 2000
         self.thinking_loop = 1

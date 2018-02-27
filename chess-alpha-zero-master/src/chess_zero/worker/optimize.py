@@ -10,7 +10,7 @@ import numpy as np
 
 from chess_zero.agent.model_chess import ChessModel
 from chess_zero.config import Config
-from chess_zero.env.chess_env import canon_input_planes, is_black_turn, testeval
+from chess_zero.env.chess_env import canon_input_planes, testeval
 from chess_zero.lib.data_helper import get_game_data_filenames, read_game_data_from_file, get_next_generation_model_dirs
 from chess_zero.lib.model_helper import load_best_model_weight
 

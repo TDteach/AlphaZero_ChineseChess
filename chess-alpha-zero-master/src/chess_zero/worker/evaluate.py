@@ -66,7 +66,7 @@ class EvaluateWorker:
                 if (current_white):
                     player = 'red'
                 else:
-                    player = 'black'          '
+                    player = 'black'
 
                 logger.debug("game %3d: ng_score=%.1f as %s "
                              "%5.2f\n" % (game_idx, ng_score, player, win_rate))
