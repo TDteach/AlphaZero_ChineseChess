@@ -66,7 +66,7 @@ class EvaluateWorker:
                 if (current_white):
                     player = 'red'
                 else:
-                    player = 'black'          '
+                    player = 'black'
 
                 logger.debug("game %3d: ng_score=%.1f as %s "
                              "%5.2f\n" % (game_idx, ng_score, player, win_rate))
@@ -153,6 +153,11 @@ def play_game(config, cur, ng, current_white: bool) -> (float, bool):
 
     white.close()
     black.close()
+
+    if (steps%2) > 0:
+        v = -v
+    if current_white:
+        v = -v
 
     if v > 0.001:
         ng_score = 1
