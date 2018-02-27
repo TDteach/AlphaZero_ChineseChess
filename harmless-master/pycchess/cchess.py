@@ -127,7 +127,7 @@ if len(sys.argv) == 2 and sys.argv[1][:2] == '-r':
         if all_replay[i] == all_replay[0]:
             ind_td.append(i)
     ind_td.append(len(all_replay))
-    random_select_replay(idx=11)
+    random_select_replay(idx=25)
     #p = Popen("./harmless", stdin=PIPE, stdout=PIPE, close_fds=ON_POSIX)
     #(chessboard.fin, chessboard.fout) = (p.stdin, p.stdout)
 

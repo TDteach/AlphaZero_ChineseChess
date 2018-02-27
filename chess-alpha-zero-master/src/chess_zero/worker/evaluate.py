@@ -154,6 +154,11 @@ def play_game(config, cur, ng, current_white: bool) -> (float, bool):
     white.close()
     black.close()
 
+    if (steps%2) > 0:
+        v = -v
+    if current_white:
+        v = -v
+
     if v > 0.001:
         ng_score = 1
     elif v < -0.001:
