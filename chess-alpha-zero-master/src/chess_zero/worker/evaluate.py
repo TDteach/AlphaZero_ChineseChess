@@ -64,14 +64,14 @@ class EvaluateWorker:
         futures = []
 
         with ProcessPoolExecutor(max_workers=self.play_config.max_processes) as executor:
-            for k in range(self.config.eval.game_num):
+            for k in range(self.play_config.max_processes):
                 fut = executor.submit(play_game, self.config, cur=self.cur_pipes, ng=self.ng_pipes, current_white=(game_idx % 2 == 0))
                 game_idx += 1
                 fut.add_done_callback(recall_fn)
                 futures.append(fut)
 
             results = []
-            for k in range(self.config.eval.game_num):
+            while len(futures) > 0:
                 job_done.acquire(True)
 
 
@@ -91,7 +91,7 @@ class EvaluateWorker:
                     logger.debug("lose count reach %d so give up challenge" % (results.count(0)))
                 elif sum(results) >= self.config.eval.game_num * self.config.eval.replace_rate:
                     logger.debug("win count reach %d so change best model" % (results.count(1)))
-                else:
+                elif game_idx < self.config.eval.game_num:
                     fut = executor.submit(play_game, self.config, cur=self.cur_pipes, ng=self.ng_pipes,
                                           current_white=(game_idx % 2 == 0))
                     game_idx += 1
@@ -99,8 +99,6 @@ class EvaluateWorker:
                     futures.append(fut)
 
                 thr_free.release()
-                if len(futures) == 0:
-                    break
 
         win_rate = sum(results) / len(results)
         logger.debug("winning rate %.1f" % win_rate*100)
