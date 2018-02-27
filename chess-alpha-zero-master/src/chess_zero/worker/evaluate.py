@@ -70,10 +70,10 @@ class EvaluateWorker:
                 fut.add_done_callback(recall_fn)
                 futures.append(fut)
 
+            k = 0
             results = []
             while True:
                 job_done.acquire(True)
-
 
                 results.append(ng_score)
                 win_rate = sum(results) / len(results)
@@ -85,7 +85,7 @@ class EvaluateWorker:
 
                 logger.debug("game %3d: ng_score=%.1f as %s "
                              "%5.2f\n" % (k, ng_score, player, win_rate))
-
+                k = k+1
 
                 if len(results)-sum(results) >= self.config.eval.game_num * (1-self.config.eval.replace_rate):
                     logger.debug("lose count reach %d so give up challenge" % (results.count(0)))
