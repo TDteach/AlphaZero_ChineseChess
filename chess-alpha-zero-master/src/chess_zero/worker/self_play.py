@@ -164,7 +164,5 @@ def self_play_buffer(config, cur) -> (tuple, list):
         data.append([history[k], policys[i], v])
         v = -v
 
-    sleep(10)
-
     cur.append(pipe)
     return (steps, vv), data

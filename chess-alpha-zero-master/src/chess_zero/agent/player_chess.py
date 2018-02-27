@@ -81,11 +81,17 @@ class ChessPlayer:
     def action(self, state:str, n_step:int) -> (str, list):
         self.all_done.acquire(True)
 
-        self.num_task = self.play_config.simulation_num_per_move
-        for i in range(self.play_config.simulation_num_per_move):
-            self.executor.submit(self.search_my_move, state, [state])
+        done = 0
+        if state in self.tree:
+            done = self.tree[state].sum_n
 
-        self.all_done.acquire(True)
+        self.num_task = self.play_config.simulation_num_per_move-done
+
+        if self.num_task > 0:
+            for i in range(self.num_task):
+                self.executor.submit(self.search_my_move, state, [state])
+            self.all_done.acquire(True)
+
         self.all_done.release()
 
         policy = self.calc_policy(state)
@@ -119,7 +125,7 @@ class ChessPlayer:
                     break
 
                 # SELECT STEP
-                canon_action = self.select_action_q_and_u(state, state==INIT_STATE)
+                canon_action = self.select_action_q_and_u(state)
 
 
                 my_visit_stats = self.tree[state]
@@ -213,22 +219,28 @@ class ChessPlayer:
 
 
     #@profile
-    def select_action_q_and_u(self, state, is_root_node) -> str:
+    def select_action_q_and_u(self, state) -> str:
 
         my_visitstats = self.tree[state]
         legal_moves = my_visitstats.legal_moves
 
+        e = self.play_config.noise_eps
+        c_puct = self.play_config.c_puct
+        dir_alpha = self.play_config.dirichlet_alpha
 
 
         if my_visitstats.p is not None: #push p, the prior probability to the edge (my_visitstats.p)
-
+            if state == INIT_STATE: # is_root
+                bias = np.random.dirichlet([dir_alpha] * len(legal_moves))
+            else:
+                bias = [0]*len(legal_moves)
 
             tot_p = 0
-            for mov in legal_moves:
+            for mov,bia in zip(legal_moves,bias):
                 mov_p = my_visitstats.p[self.move_lookup[mov]]
+                mov_p = (1-e) * mov_p + e*bia
                 my_visitstats.a[mov].p = mov_p
                 tot_p += mov_p
-
 
             for mov in legal_moves:
                 my_visitstats.a[mov].p /= tot_p
@@ -236,19 +248,12 @@ class ChessPlayer:
 
         xx_ = np.sqrt(my_visitstats.sum_n + 1)  # sqrt of sum(N(s, b); for all b)
 
-        e = self.play_config.noise_eps
-        c_puct = self.play_config.c_puct
-        dir_alpha = self.play_config.dirichlet_alpha
-
         best_s = -999
         best_a = None
 
         for action in legal_moves:
             a_s = my_visitstats.a[action]
-            p_ = a_s.p
-            if is_root_node:
-                p_ = (1-e) * p_ + e * np.random.dirichlet([dir_alpha])
-            b = a_s.q + c_puct * p_ * xx_ / (1 + a_s.n)
+            b = a_s.q + c_puct * a_s.p * xx_ / (1 + a_s.n)
             if b > best_s:
                 best_s = b
                 best_a = action

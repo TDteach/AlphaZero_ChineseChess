@@ -18,10 +18,10 @@ ind = {pieces_order[i]: i for i in range(14)}
 
 def game_over(state):
     if 'k' not in state:
-        return -1
+        return int(-1)
     if 'K' not in state:
-        return 1
-    return 0
+        return int(1)
+    return int(0)
 
 def testeval(state) -> float:
     piece_vals = {'r': 14, 'n': 7, 'b': 3, 'a': 2, 'k':1, 'c': 5, 'p': 1} # for RED account
