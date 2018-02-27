@@ -98,9 +98,11 @@ class EvaluateWorker:
                     fut.add_done_callback(recall_fn)
                     futures.append(fut)
 
-                thr_free.release()
                 if len(futures) == 0:
+                    thr_free.release()
+                    job_done.release()
                     break
+                thr_free.release()
 
         win_rate = sum(results) / len(results)
         logger.debug("winning rate %.1f" % win_rate*100)
