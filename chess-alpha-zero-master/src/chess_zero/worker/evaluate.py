@@ -3,6 +3,7 @@ from concurrent.futures import ProcessPoolExecutor, as_completed
 from logging import getLogger
 from multiprocessing import Manager
 from time import sleep
+from threading import Lock
 from collections import deque
 
 from chess_zero.agent.model_chess import ChessModel
