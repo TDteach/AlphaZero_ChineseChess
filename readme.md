@@ -8,7 +8,8 @@ This project is modified from two projects:
 2) https://github.com/timebug/harmless.git 
 And I attached their original version as ZIPs in the root folder.
 
-Note: <b>This project is still under construction!!</b>
+Note: This project is still under construction!!
+The <b>new-threads</b> branch reconstrusted the original multi-threading logic and increased the performance reliably 
 
 Environment required for training 
 -----------
