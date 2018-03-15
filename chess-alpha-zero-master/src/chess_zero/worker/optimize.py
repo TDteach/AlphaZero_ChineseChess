@@ -70,6 +70,7 @@ class OptimizeWorker:
         tc = self.config.trainer
         state_ary, policy_ary, value_ary = self.collect_all_loaded_data()
         tensorboard_cb = TensorBoard(log_dir="./logs", batch_size=tc.batch_size, histogram_freq=1)
+
         self.model.model.fit(state_ary, [policy_ary, value_ary],
                              batch_size=tc.batch_size,
                              epochs=epochs,

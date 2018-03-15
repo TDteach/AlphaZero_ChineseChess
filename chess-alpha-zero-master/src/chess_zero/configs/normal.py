@@ -4,7 +4,7 @@ class EvaluateConfig:
         self.game_num = 50
         self.replace_rate = 0.55
         self.play_config = PlayConfig()
-        self.play_config.simulation_num_per_move = 1600
+        self.play_config.simulation_num_per_move = 1200
         self.play_config.thinking_loop = 1
         self.play_config.c_puct = 1 # lower  = prefer mean action value
         self.play_config.tau_decay_rate = 0.6 # I need a better distribution...
@@ -33,7 +33,7 @@ class PlayConfig:
         self.c_puct = 1.5
         self.noise_eps = 0.25
         self.dirichlet_alpha = 0.3
-        self.tau_decay_rate = 0.98
+        self.tau_decay_rate = 0.95
         self.virtual_loss = 3
         self.resign_threshold = -1.01
         self.min_resign_turn = 20

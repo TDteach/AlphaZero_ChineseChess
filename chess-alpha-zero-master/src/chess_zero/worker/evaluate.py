@@ -14,11 +14,11 @@ from chess_zero.lib.data_helper import get_next_generation_model_dirs
 from chess_zero.lib.model_helper import save_as_best_model, load_best_model_weight
 
 logger = getLogger(__name__)
-job_done = Lock()
-thr_free = Lock()
+job_do = Lock()
+thr_fr = Lock()
 ng_score = None
 cut_white = None
-futures =[]
+ffs =[]
 
 def start(config: Config):
     return EvaluateWorker(config).start()
@@ -52,28 +52,30 @@ class EvaluateWorker:
             # self.move_model(model_dir)
 
     def evaluate_model(self):
-        global futures
-        global job_done
-        global thr_free
+        global ffs
+        global job_do
+        global thr_fr
         global ng_score
         global cut_white
 
-        job_done.acquire(True)
+        print('debug init')
+        job_do.acquire(True)
 
         game_idx = 0
-        futures = []
+        ffs = []
 
         with ProcessPoolExecutor(max_workers=self.play_config.max_processes) as executor:
             for k in range(self.play_config.max_processes):
                 fut = executor.submit(play_game, self.config, cur=self.cur_pipes, ng=self.ng_pipes, current_white=(game_idx % 2 == 0))
                 game_idx += 1
                 fut.add_done_callback(recall_fn)
-                futures.append(fut)
+                ffs.append(fut)
 
             k = 0
             results = []
             while True:
-                job_done.acquire(True)
+                print('wait job '+str(len(ffs)))
+                job_do.acquire(True)
 
                 results.append(ng_score)
                 win_rate = sum(results) / len(results)
@@ -96,16 +98,16 @@ class EvaluateWorker:
                                           current_white=(game_idx % 2 == 0))
                     game_idx += 1
                     fut.add_done_callback(recall_fn)
-                    futures.append(fut)
+                    ffs.append(fut)
 
-                if len(futures) == 0:
-                    thr_free.release()
-                    job_done.release()
+                if len(ffs) == 0:
                     break
-                thr_free.release()
+                thr_fr.release()
 
+        thr_fr.release()
+        job_do.release()
         win_rate = sum(results) / len(results)
-        logger.debug("winning rate %.1f" % win_rate*100)
+        logger.debug("winning rate %.1f" % (win_rate*100))
         return win_rate >= self.config.eval.replace_rate
 
     def move_model(self, model_dir):
@@ -149,16 +151,16 @@ class EvaluateWorker:
         return model_dir, config_path, weight_path
 
 def recall_fn(future):
-    global thr_free
-    global job_done
+    global thr_fr
+    global job_do
     global ng_score
     global cut_white
-    global futures
+    global ffs
 
-    thr_free.acquire(True)
+    thr_fr.acquire(True)
     ng_score, cut_white = future.result()
-    futures.remove(future)
-    job_done.release()
+    ffs.remove(future)
+    job_do.release()
 
 
 def play_game(config, cur, ng, current_white: bool) -> (float, bool):
@@ -185,6 +187,7 @@ def play_game(config, cur, ng, current_white: bool) -> (float, bool):
         steps += 1
         if steps >= config.eval.max_game_length:
             v = env.testeval(state)
+            break
         else:
             v = env.game_over(state)
 

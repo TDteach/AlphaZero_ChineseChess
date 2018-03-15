@@ -6,10 +6,13 @@ from logging import getLogger
 
 
 import tensorflow as tf
-config = tf.ConfigProto()
+from keras import backend as KK
+
+config = tf.ConfigProto(intra_op_parallelism_threads=8, inter_op_parallelism_threads=8, allow_soft_placement=True, device_count = {'CPU':8})
 config.gpu_options.allow_growth = True
 config.gpu_options.visible_device_list='0'
 session = tf.Session(config=config)
+KK.set_session(session)
 
 from keras.engine.topology import Input
 from keras.engine.training import Model
