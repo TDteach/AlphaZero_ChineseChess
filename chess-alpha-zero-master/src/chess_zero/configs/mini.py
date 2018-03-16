@@ -24,20 +24,20 @@ class PlayDataConfig:
 
 class PlayConfig:
     def __init__(self):
-        self.max_processes = 2 #before 3
-        self.search_threads = 2 #before 16
+        self.max_processes = 1 #before 3
+        self.search_threads = 10 #before 16
         self.vram_frac = 1.0
-        self.simulation_num_per_move = 1000 # before 1000
+        self.simulation_num_per_move = 2000 # before 1000
         self.thinking_loop = 1
         self.logging_thinking = False
         self.c_puct = 1.5  #before 1.5
         self.noise_eps = 0.25
         self.dirichlet_alpha = 0.3
-        self.tau_decay_rate = 0.99
+        self.tau_decay_rate = 0.95
         self.virtual_loss = 3
-        self.resign_threshold = -0.8
-        self.min_resign_turn = 5
-        self.max_game_length = 50 # before 1000
+        self.resign_threshold = -1.01
+        self.min_resign_turn = 20
+        self.max_game_length = 200 # before 1000
 
 
 class TrainerConfig:

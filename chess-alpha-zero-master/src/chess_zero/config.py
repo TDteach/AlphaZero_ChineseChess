@@ -209,6 +209,7 @@ BOARD_WIDTH = 9
 # init_fen = 'rn2ka1nr/4a4/bc2C4/2p1p1p1p/p2c5/2B6/P1P1P1P1P/1C7/9/RN1AKABNR r - - 0 1'
 # init_fen = 'rnbakabnr/9/1c5c1/p1p1p1p1p/9/9/P1P1P1P1P/1C5C1/9/RNBAKABNR r - - 0 1'
 INIT_STATE = 'rnbakabnr/9/1c5c1/p1p1p1p1p/9/9/P1P1P1P1P/1C5C1/9/RNBAKABNR'
+# INIT_STATE = '2R1kaR2/4a3c/9/1C2p4/9/p3c2pC/4N3P/3AB3n/4A4/4K4'
 mov_dir = {
     'k': [(0, -1), (1, 0), (0, 1), (-1, 0)],
     'K': [(0, -1), (1, 0), (0, 1), (-1, 0)],

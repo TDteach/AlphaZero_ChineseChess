@@ -124,6 +124,7 @@ def fen_to_board(fen):
     x = 0
     y = 0
     for ch in fen:
+
         if ch == ' ':
             break
         if ch == '/':

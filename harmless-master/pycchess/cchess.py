@@ -87,7 +87,7 @@ def random_select_replay(idx=None): # idx from 1
 
     print(ind_td[k+1])
     print(ind_td[k])
-    print(all_replay[ind_td[k+1]])
+    # print(all_replay[ind_td[k+1]])
 
     for i in range(ind_td[k+1]-ind_td[k]):
         rr = all_replay[ind_td[k]+i]

@@ -22,12 +22,15 @@ class VisitStats:
         self.p = None
         self.legal_moves = None
         self.waiting = False
+        self.w = 0
+        self.d = 0
 
 
 class ActionStats:
     def __init__(self):
         self.n = 0
-        self.w = 0
+        # self.d = 0
+        # self.w = 0
         self.q = 0
         self.p = -1
         self.next = None
@@ -95,7 +98,7 @@ class ChessPlayer:
         self.all_done.release()
 
         policy = self.calc_policy(state)
-        my_action = int(np.random.choice(range(self.labels_n), p=self.apply_temperature(policy, n_step)))
+        my_action = int(np.random.choice(range(self.labels_n), p=self.apply_temperature(policy, 50+n_step)))
 
         return self.config.labels[my_action], list(policy)
 
@@ -127,14 +130,10 @@ class ChessPlayer:
                 # SELECT STEP
                 canon_action = self.select_action_q_and_u(state)
 
-
                 my_visit_stats = self.tree[state]
                 my_visit_stats.sum_n += 1
-
                 my_stats = my_visit_stats.a[canon_action]
                 my_stats.n += 1
-                my_stats.w += 0
-                my_stats.q = my_stats.w / my_stats.n
 
                 if my_stats.next is None:
                     my_stats.next = env.step(state, canon_action)
@@ -180,13 +179,18 @@ class ChessPlayer:
 
     def update_tree(self, p, v, history):
         state = history.pop()
+        z = 0
         if p is not None:
             with self.node_lock[state]:
-                self.tree[state].p = p
-                self.tree[state].waiting = False
-                for hist in self.tree[state].visit:
+                my_visit_stats = self.tree[state]
+                my_visit_stats.p = p
+                my_visit_stats.waiting = False
+                for hist in my_visit_stats.visit:
                     self.executor.submit(self.search_my_move, state, hist)
-                self.tree[state].visit = []
+                my_visit_stats.visit = []
+                my_visit_stats.w += v
+                my_visit_stats.d += 1
+                z = my_visit_stats.w*1.0 / my_visit_stats.d
 
         while len(history) > 0:
             action = history.pop()
@@ -194,9 +198,13 @@ class ChessPlayer:
             v = -v
             with self.node_lock[state]:
                 my_visit_stats = self.tree[state]
+                my_visit_stats.w += v
+                my_visit_stats.d += 1
                 my_stats = my_visit_stats.a[action]
-                my_stats.w += v
-                my_stats.q = my_stats.w / my_stats.n
+                # my_stats.w += v
+                # my_stats.d += 1
+                my_stats.q = z
+                z = my_visit_stats.w * 1.0 / my_visit_stats.d
 
 
         with self.t_lock:
