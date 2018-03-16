@@ -23,7 +23,7 @@ class VisitStats:
         self.legal_moves = None
         self.waiting = False
         self.w = 0
-        self.d = 0
+        # self.d = 0
 
 
 class ActionStats:
@@ -113,6 +113,7 @@ class ChessPlayer:
 
             with self.node_lock[state]:
                 if state not in self.tree:
+                    self.tree[state].sum_n = 1
                     self.tree[state].waiting = True
                     self.tree[state].legal_moves = env.legal_moves(state)
                     self.expand_and_evaluate(state, history)
@@ -189,8 +190,8 @@ class ChessPlayer:
                     self.executor.submit(self.search_my_move, state, hist)
                 my_visit_stats.visit = []
                 my_visit_stats.w += v
-                my_visit_stats.d += 1
-                z = my_visit_stats.w*1.0 / my_visit_stats.d
+                # my_visit_stats.d += 1
+                z = my_visit_stats.w*1.0 / my_visit_stats.sum_n
 
         while len(history) > 0:
             action = history.pop()
@@ -199,12 +200,12 @@ class ChessPlayer:
             with self.node_lock[state]:
                 my_visit_stats = self.tree[state]
                 my_visit_stats.w += v
-                my_visit_stats.d += 1
+                # my_visit_stats.d += 1
                 my_stats = my_visit_stats.a[action]
                 # my_stats.w += v
                 # my_stats.d += 1
                 my_stats.q = -z
-                z = my_visit_stats.w * 1.0 / my_visit_stats.d
+                z = my_visit_stats.w * 1.0 / my_visit_stats.sum_n
 
 
         with self.t_lock:
@@ -239,6 +240,7 @@ class ChessPlayer:
 
         if my_visitstats.p is not None: #push p, the prior probability to the edge (my_visitstats.p)
             if state == INIT_STATE: # is_root
+                # bias = [0] * len(legal_moves)
                 bias = np.random.dirichlet([dir_alpha] * len(legal_moves))
             else:
                 bias = [0]*len(legal_moves)
