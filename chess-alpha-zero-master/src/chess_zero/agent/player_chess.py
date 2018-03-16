@@ -203,7 +203,7 @@ class ChessPlayer:
                 my_stats = my_visit_stats.a[action]
                 # my_stats.w += v
                 # my_stats.d += 1
-                my_stats.q = z
+                my_stats.q = -z
                 z = my_visit_stats.w * 1.0 / my_visit_stats.d
 
 
