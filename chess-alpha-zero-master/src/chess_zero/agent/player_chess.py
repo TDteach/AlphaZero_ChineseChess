@@ -69,6 +69,7 @@ class ChessPlayer:
         self.executor = ThreadPoolExecutor(max_workers=self.play_config.search_threads+2)
         self.executor.submit(self.receiver)
         self.executor.submit(self.sender)
+        self.pp = None
 
 
         if search_tree is None:
@@ -82,7 +83,10 @@ class ChessPlayer:
             self.executor.shutdown()
 
     def action(self, state:str, n_step:int) -> (str, list):
+        self.tree = defaultdict(VisitStats)
         self.all_done.acquire(True)
+
+        #self.pp = np.zeros(self.labels_n)
 
         done = 0
         if state in self.tree:
@@ -98,7 +102,9 @@ class ChessPlayer:
         self.all_done.release()
 
         policy = self.calc_policy(state)
-        my_action = int(np.random.choice(range(self.labels_n), p=self.apply_temperature(policy, 50+n_step)))
+        #print('debug: '+str(np.sum(self.pp)))
+        #policy = self.pp/np.sum(self.pp)
+        my_action = int(np.random.choice(range(self.labels_n), p=self.apply_temperature(policy, n_step)))
 
         return self.config.labels[my_action], list(policy)
 
@@ -130,6 +136,9 @@ class ChessPlayer:
 
                 # SELECT STEP
                 canon_action = self.select_action_q_and_u(state)
+
+                #if (len(history) == 1):
+                #    self.pp[self.move_lookup[canon_action]] += 1
 
                 my_visit_stats = self.tree[state]
                 my_visit_stats.sum_n += 1
@@ -236,7 +245,6 @@ class ChessPlayer:
 
         if my_visitstats.p is not None: #push p, the prior probability to the edge (my_visitstats.p)
             if state == INIT_STATE: # is_root
-                # bias = [0] * len(legal_moves)
                 bias = np.random.dirichlet([dir_alpha] * len(legal_moves))
             else:
                 bias = [0]*len(legal_moves)
