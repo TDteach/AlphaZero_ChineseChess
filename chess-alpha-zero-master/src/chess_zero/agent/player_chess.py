@@ -180,7 +180,7 @@ class ChessPlayer:
 
     def update_tree(self, p, v, history):
         state = history.pop()
-        z = 0
+        z = v
         if p is not None:
             with self.node_lock[state]:
                 my_visit_stats = self.tree[state]
@@ -190,7 +190,6 @@ class ChessPlayer:
                     self.executor.submit(self.search_my_move, state, hist)
                 my_visit_stats.visit = []
                 my_visit_stats.w += v
-                # my_visit_stats.d += 1
                 z = my_visit_stats.w*1.0 / my_visit_stats.sum_n
 
         while len(history) > 0:
@@ -200,10 +199,7 @@ class ChessPlayer:
             with self.node_lock[state]:
                 my_visit_stats = self.tree[state]
                 my_visit_stats.w += v
-                # my_visit_stats.d += 1
                 my_stats = my_visit_stats.a[action]
-                # my_stats.w += v
-                # my_stats.d += 1
                 my_stats.q = -z
                 z = my_visit_stats.w * 1.0 / my_visit_stats.sum_n
 
