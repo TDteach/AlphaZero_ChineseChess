@@ -82,7 +82,7 @@ class ChessPlayer:
         if self.executor is not None:
             self.executor.shutdown()
 
-    def action(self, state:str, n_step:int) -> (str, list):
+    def action(self, state:str, n_step:int, no_act=None) -> (str, list):
         self.tree = defaultdict(VisitStats)
         self.all_done.acquire(True)
 
@@ -104,6 +104,9 @@ class ChessPlayer:
         policy = self.calc_policy(state)
         #print('debug: '+str(np.sum(self.pp)))
         #policy = self.pp/np.sum(self.pp)
+        if no_act is not None:
+            for act in no_act:
+                policy[self.move_lookup[act]] = 0
         my_action = int(np.random.choice(range(self.labels_n), p=self.apply_temperature(policy, n_step)))
 
         return self.config.labels[my_action], list(policy)
