@@ -272,7 +272,10 @@ class ChessPlayer:
 
         for action in legal_moves:
             a_s = my_visitstats.a[action]
-            b = a_s.q + c_puct * a_s.p * xx_ / (1 + a_s.n)
+            if (a_s.n < 1):
+                b = a_s.q + 10000
+            else:
+                b = a_s.q + c_puct * a_s.p * xx_ / a_s.n
             if b > best_s:
                 best_s = b
                 best_a = action
