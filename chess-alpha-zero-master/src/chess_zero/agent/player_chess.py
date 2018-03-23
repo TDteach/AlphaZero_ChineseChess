@@ -94,7 +94,7 @@ class ChessPlayer:
 
         todo = self.play_config.simulation_num_per_move-done
 
-        if self.num_task > 0:
+        if todo > 0:
             for k in range(2):
                 self.num_task = int(todo/2)
                 for i in range(self.num_task):
