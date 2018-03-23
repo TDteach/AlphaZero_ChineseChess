@@ -12,7 +12,6 @@ from time import sleep
 
 logger = getLogger(__name__)
 
-
 # these are from AGZ nature paper
 class VisitStats:
     def __init__(self):
@@ -22,15 +21,12 @@ class VisitStats:
         self.p = None
         self.legal_moves = None
         self.waiting = False
-        self.w = 0
-        # self.d = 0
 
 
 class ActionStats:
     def __init__(self):
         self.n = 0
-        # self.d = 0
-        # self.w = 0
+        self.w = 0
         self.q = 0
         self.p = -1
         self.next = None
@@ -69,7 +65,6 @@ class ChessPlayer:
         self.executor = ThreadPoolExecutor(max_workers=self.play_config.search_threads+2)
         self.executor.submit(self.receiver)
         self.executor.submit(self.sender)
-        self.pp = None
 
 
         if search_tree is None:
@@ -86,20 +81,19 @@ class ChessPlayer:
         self.tree = defaultdict(VisitStats)
         self.all_done.acquire(True)
 
-        #self.pp = np.zeros(self.labels_n)
-
         done = 0
         if state in self.tree:
             done = self.tree[state].sum_n
 
         todo = self.play_config.simulation_num_per_move-done
+        limit = 256
 
-        if todo > 0:
-            for k in range(2):
-                self.num_task = int(todo/2)
-                for i in range(self.num_task):
-                    self.executor.submit(self.search_my_move, state, [state])
-                self.all_done.acquire(True)
+        while todo > 0:
+            self.num_task = min(limit, todo)
+            for i in range(self.num_task):
+                self.executor.submit(self.search_my_move, state, [state])
+            self.all_done.acquire(True)
+            todo -= limit
 
         self.all_done.release()
 
@@ -148,7 +142,8 @@ class ChessPlayer:
                 my_visit_stats = self.tree[state]
                 my_visit_stats.sum_n += 1
                 my_stats = my_visit_stats.a[canon_action]
-                my_stats.n += 1
+                my_stats.n += 3
+                my_stats.q = my_stats.w/my_stats.n
 
                 if my_stats.next is None:
                     my_stats.next = env.step(state, canon_action)
@@ -194,7 +189,6 @@ class ChessPlayer:
 
     def update_tree(self, p, v, history):
         state = history.pop()
-        z = v
         if p is not None:
             with self.node_lock[state]:
                 my_visit_stats = self.tree[state]
@@ -203,8 +197,6 @@ class ChessPlayer:
                 for hist in my_visit_stats.visit:
                     self.executor.submit(self.search_my_move, state, hist)
                 my_visit_stats.visit = []
-                my_visit_stats.w += v
-                z = my_visit_stats.w*1.0 / my_visit_stats.sum_n
 
         while len(history) > 0:
             action = history.pop()
@@ -212,10 +204,10 @@ class ChessPlayer:
             v = -v
             with self.node_lock[state]:
                 my_visit_stats = self.tree[state]
-                my_visit_stats.w += v
                 my_stats = my_visit_stats.a[action]
-                my_stats.q = -z
-                z = my_visit_stats.w * 1.0 / my_visit_stats.sum_n
+                my_stats.w += v
+                my_stats.n -= 2
+                my_stats.q = my_stats.w/my_stats.n
 
 
         with self.t_lock:
@@ -265,17 +257,14 @@ class ChessPlayer:
                 my_visitstats.a[mov].p /= tot_p
             my_visitstats.p = None # release the temp policy
 
-        xx_ = np.sqrt(my_visitstats.sum_n + 1)  # sqrt of sum(N(s, b); for all b)
+        xx_ = np.log(my_visitstats.sum_n + 1)  # sqrt of sum(N(s, b); for all b)
 
         best_s = -999
         best_a = None
 
         for action in legal_moves:
             a_s = my_visitstats.a[action]
-            if (a_s.n < 1):
-                b = a_s.q + 10000
-            else:
-                b = a_s.q + c_puct * a_s.p * xx_ / a_s.n
+            b = a_s.q + c_puct * a_s.p * xx_ / (a_s.n+1)
             if b > best_s:
                 best_s = b
                 best_a = action
