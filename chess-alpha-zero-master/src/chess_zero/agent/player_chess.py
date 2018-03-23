@@ -92,12 +92,14 @@ class ChessPlayer:
         if state in self.tree:
             done = self.tree[state].sum_n
 
-        self.num_task = self.play_config.simulation_num_per_move-done
+        todo = self.play_config.simulation_num_per_move-done
 
         if self.num_task > 0:
-            for i in range(self.num_task):
-                self.executor.submit(self.search_my_move, state, [state])
-            self.all_done.acquire(True)
+            for k in range(2):
+                self.num_task = int(todo/2)
+                for i in range(self.num_task):
+                    self.executor.submit(self.search_my_move, state, [state])
+                self.all_done.acquire(True)
 
         self.all_done.release()
 
