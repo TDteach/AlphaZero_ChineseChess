@@ -113,7 +113,7 @@ class ChessPlayer:
         while True:
             v = env.game_over(state)
             if v != 0:
-                self.executor.submit(self.update_tree, None, v, history)
+                self.executor.submit(self.update_tree, None, v*10000, history)
                 break
 
             with self.node_lock[state]:
@@ -208,6 +208,10 @@ class ChessPlayer:
                 my_stats.w += v
                 my_stats.n -= 2
                 my_stats.q = my_stats.w/my_stats.n
+            if v > 1:
+                v = 1
+            if v < -1:
+                v = -1
 
 
         with self.t_lock:
@@ -264,7 +268,7 @@ class ChessPlayer:
 
         for action in legal_moves:
             a_s = my_visitstats.a[action]
-            b = a_s.q + c_puct * a_s.p * xx_ / (a_s.n+1)
+            b = a_s.q + c_puct * a_s.p * xx_ / (a_s.n+0.01)
             if b > best_s:
                 best_s = b
                 best_a = action
