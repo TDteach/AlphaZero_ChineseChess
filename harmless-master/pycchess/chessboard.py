@@ -358,6 +358,7 @@ class chessboard:
             else:
                 if self.selected is ():
                     return False
+        print(flag)
 
         if self.selected is ():
             if flag:
@@ -379,7 +380,7 @@ class chessboard:
 
                         # if not self.check(self.side):
 
-                        if 1:
+                        if True:
                             under_attack = self.check(1 - self.side)
 
                             if under_attack is True:
@@ -400,7 +401,7 @@ class chessboard:
                                     if self.net is not None:
                                         self.net.send_move(move_str)
                                     else:
-                                        print 'self.net is None'
+                                        print('self.net is None')
 
                                 if self.mode == AI:
                                     fen_str = self.get_fen()
@@ -416,7 +417,7 @@ class chessboard:
                         else:
                             self.unmake_move(self.selected, (x, y), chessman_)
 
-                    return False
+        return False
 
     def make_move(self, p, n, chessman_):
         chessman = self.board[p]

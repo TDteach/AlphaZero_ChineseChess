@@ -24,7 +24,7 @@ size = (WIDTH, HEIGHT) = (530, 586)
 RED, BLACK = 0, 1
 BORDER, SPACE, ENTER = 15, 56, 13
 LOCAL, OTHER = 0, 1
-NETWORK, AI = 0, 1
+NETWORK, AI, ALPHA = 0, 1, 2
 KING, ADVISOR, BISHOP, KNIGHT, ROOK, CANNON, PAWN, NONE = 0, 1, 2, 3, 4, 5, 6, -1
 
 AI_SEARCH_DEPTH = 5
@@ -119,8 +119,8 @@ class move:
 def load_sound(name):
     try:
         sound = pygame.mixer.Sound(name)
-    except pygame.error, message:
-        raise SystemExit, message
+    except pygame.error:
+        raise SystemExit
     return sound
 
 def create_uci_labels():

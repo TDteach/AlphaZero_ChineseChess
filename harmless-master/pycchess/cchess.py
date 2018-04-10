@@ -16,7 +16,6 @@
 
 # You should have received a copy of the GNU General Public License
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
-
 from common import *
 from chessboard import *
 from chessnet import *
@@ -27,13 +26,18 @@ import random
 import numpy as np
 
 import pygame
-#import pygame._view
 from pygame.locals import *
 
 import sys
 from subprocess import PIPE, Popen
 from threading import Thread
-from Queue import Queue, Empty
+from queue import Queue, Empty
+
+from multiprocessing import Manager
+from chess_zero.agent.model_chess import ChessModel
+from chess_zero.agent.player_chess import ChessPlayer
+from chess_zero.config import Config
+from chess_zero.lib.model_helper import load_best_model_weight
 
 ON_POSIX = 'posix' in sys.builtin_module_names
 
@@ -57,6 +61,8 @@ ind_td = None
 step = 0
 labels = create_uci_labels()
 move_lookup = {move: i for move, i in zip(labels, range(len(labels)))}
+isAlpha = False
+AlphaPlayer = None
 
 def flip_state(state):
     rows = state.split('/')
@@ -100,13 +106,19 @@ def random_select_replay(idx=None): # idx from 1
     policy = all_policy[ind_td[k]:ind_td[k + 1]]
 
 
+if len(sys.argv) == 2 and sys.argv[1][:2] == '-a':
+    config = Config(config_type='normal')
+    AlphaModel = ChessModel(config)
+    load_best_model_weight(AlphaModel)
+    AlphaPlayer = ChessPlayer(config, pipe=AlphaModel.get_pipe())
+    isAlpha = True
+    chessboard.side = BLACK
+    chessboard.mode = ALPHA
 
 
-if len(sys.argv) == 2 and sys.argv[1][:2] == '-r':
-    global all_replay
-    global all_values
-    global all_policy
-    global ind_td
+
+
+elif len(sys.argv) == 2 and sys.argv[1][:2] == '-r':
     replay_dir = '/home/tdteach/workspace/AlphaZero_ChineseChess/chess-alpha-zero-master/data/play_data'
     files = os.listdir(replay_dir)
     files.sort()
@@ -127,7 +139,7 @@ if len(sys.argv) == 2 and sys.argv[1][:2] == '-r':
         if all_replay[i] == all_replay[0]:
             ind_td.append(i)
     ind_td.append(len(all_replay))
-    random_select_replay(idx=25)
+    random_select_replay(idx=1)
     #p = Popen("./harmless", stdin=PIPE, stdout=PIPE, close_fds=ON_POSIX)
     #(chessboard.fin, chessboard.fout) = (p.stdin, p.stdout)
 
@@ -142,7 +154,7 @@ elif len(sys.argv) == 2 and sys.argv[1][:2] == '-n':
         pygame.display.set_caption("black")
         chessboard.side = BLACK
     else:
-        print '>> quit game'
+        print('>> quit game')
         sys.exit()
 
     chessboard.net.NET_HOST = sys.argv[2]
@@ -172,7 +184,7 @@ elif len(sys.argv) == 1:
     pygame.display.set_caption("harmless")
     chessboard.side = RED
 else:
-    print '>> quit game'
+    print('>> quit game')
     sys.exit()
 
 chessboard.fen_parse(fen_str)
@@ -199,22 +211,21 @@ def newGame(re=False):
     global waiting
     global moved
     global step
-    global replay
+    global all_replay
 
     step = 0
 
-    print "setoption newgame\n"
-    print '>> new game'
+    print("setoption newgame\n")
+    print('>> new game')
 
-    if re:
-        chessboard.fen_parse(replay[0])
-    else:
-        chessboard.fen_parse(fen_str)
+
+    chessboard.fen_parse(fen_str)
     init = True
     waiting = False
     moved = False
 
 def quitGame():
+    global AlphaPlayer
     if chessboard.mode is NETWORK:
         net = chessnet()
         net.send_move('quit')
@@ -223,7 +234,10 @@ def quitGame():
         chessboard.fin.flush()
         p.terminate()
 
-    print '>> quit game'
+    if AlphaPlayer is not None:
+        AlphaPlayer.close()
+
+    print('>> quit game')
     sys.exit()
 
 def runGame():
@@ -235,6 +249,7 @@ def runGame():
     global policy
     global move_lookup
     global labels
+    global AlphaPlayer
 
     for event in pygame.event.get():
         if event.type == QUIT:
@@ -259,7 +274,8 @@ def runGame():
                 break
             x = (x - BORDER) / SPACE
             y = (y - BORDER) / SPACE
-            print (x,y)
+            x = int(x)
+            y = int(y)
             if not waiting and not chessboard.over:
                 moved = chessboard.move_chessman(x, y)
                 if chessboard.mode == NETWORK and moved:
@@ -271,7 +287,7 @@ def runGame():
     pygame.display.update()
     # time.sleep(3)
 
-    if moved:
+    if moved and not isAlpha:
         if chessboard.mode is NETWORK:
             move_str = chessboard.net.get_move()
             if move_str is not 'quit':
@@ -298,7 +314,7 @@ def runGame():
                     win_side = 'BLACK'
                 else:
                     win_side = 'RED'
-                print '>>', win_side, 'win'
+                print('>> '+win_side+' win')
 
                 return
             elif output[0:8] == 'bestmove':
@@ -323,7 +339,7 @@ def runGame():
                 win_side = 'BLACK'
             else:
                 win_side = 'RED'
-            print '>>', win_side, 'win'
+            print('>> ' + win_side + ' win')
 
         moved = False
 
@@ -346,8 +362,9 @@ def runGame():
     if len(sys.argv) == 2 and sys.argv[1][:2] == '-r': # for replay
         bef = fertilize(replay[0])
         aft = fertilize(replay[1])
-        print(replay[0])
-        print(replay[1])
+        print('bef:  '+replay[0])
+        print('flp:  '+flip_state(replay[0]))
+        print('aft:  '+replay[1])
         arr=[0,0,0,0]
         k=0
         for y in range(10):
@@ -361,15 +378,15 @@ def runGame():
                         arr[3] = y
                 k = k+1
         uci = chr(ord('a') + arr[0])+str(arr[1])+chr(ord('a') + arr[2])+str(arr[3])
-        print '%s : %f' % (uci, policy[0][move_lookup[uci]])
+        print('%s : %f' % (uci, policy[0][move_lookup[uci]]))
         # print uci
         # print 'from ('+str(arr[0])+','+str(arr[1])+') to ('+str(arr[2])+','+str(arr[3])+')'
-        print 'value = %f' % (values[0])
+        print('value = %f' % (values[0]))
         # print 'policy = %f' % (policy[0][move_lookup[uci]])
 
 
         z = np.argmax(policy[0])
-        print '%s : %f' % (labels[z], policy[0][z])
+        print('%s : %f' % (labels[z], policy[0][z]))
 
         chessboard.move_chessman(arr[0], 9-arr[1])
         chessboard.move_chessman(arr[2], 9-arr[3])
@@ -380,27 +397,75 @@ def runGame():
             values = values[1:]
             policy = policy[1:]
         else:
-            print replay[0]
-            print replay[1]
-            raw_input('pause')
+            print(replay[0])
+            print(replay[1])
+            input('pause')
             chessboard.draw(screen)
             pygame.display.update()
-            raw_input('next game type enter:')
+            input('next game type enter:')
             random_select_replay()
             newGame(re=True)
+
+    if moved and len(sys.argv) == 2 and sys.argv[1][:2] == '-a':
+        state = chessboard.get_fen()
+        state = state.split(' ')[0]
+        state = flip_state(state)
+        z = ''
+        for ch in state:
+            if ch.islower():
+                z = z+ch.upper()
+            elif ch.isupper():
+                z = z+ch.lower()
+            else:
+                z = z+ch
+        state = z
+
+        if chessboard.side == BLACK:
+            state = flip_state(state)
+
+        action, policy = AlphaPlayer.action(state, 100, [])
+
+        arr = str_to_move(action)
+        if chessboard.side == BLACK:
+            arr[1] = 9-arr[1]
+            arr[3] = 9-arr[3]
+
+        print(arr)
+
+        chessboard.side = 1 - chessboard.side
+        chessboard.move_from = OTHER
+        chessboard.move_chessman(arr[0], arr[1])
+        chessboard.move_chessman(arr[2], arr[3])
+        chessboard.move_from = LOCAL
+        chessboard.side = 1 - chessboard.side
+
+        # if chessboard.check(chessboard.side):
+        chessboard.over = chessboard.game_over(chessboard.side)
+        if chessboard.over:
+            chessboard.over_side = chessboard.side
+
+            if chessboard.over_side == RED:
+                win_side = 'BLACK'
+            else:
+                win_side = 'RED'
+            print('>> ' + win_side + ' win')
+
+        moved = False
 
 
 try:
     step = 0
     while True:
-        if step%2 == 0:
-            print 'RED'
-        else:
-            print 'BLACK'
-        print 'STEP '+str(step)+':'
-        step = step+1
+        if len(sys.argv) == 2 and sys.argv[1][:2] == '-r': # for replay
+            if step%2 == 0:
+                print('RED')
+            else:
+                print('BLACK')
+            print('STEP '+str(step)+':')
+            step = step+1
         runGame()
-        # time.sleep(1)
-        raw_input('pause')
+        if len(sys.argv) == 2 and sys.argv[1][:2] == '-r': # for replay
+            time.sleep(1)
+            input('pause')
 except KeyboardInterrupt:
     quitGame()
