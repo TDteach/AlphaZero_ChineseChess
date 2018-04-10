@@ -24,6 +24,7 @@ from keras.regularizers import l2
 
 from chess_zero.agent.api_chess import ChessModelAPI
 from chess_zero.config import Config
+from filelock import FileLock
 
 # noinspection PyPep8Naming
 
@@ -128,12 +129,14 @@ class ChessModel:
                 pass
         if os.path.exists(config_path) and os.path.exists(weight_path):
             logger.debug("loading model from %s" % (config_path))
-            with open(config_path, "rt") as f:
-                self.model = Model.from_config(json.load(f))
-            self.model.load_weights(weight_path)
-            self.model._make_predict_function()
-            self.digest = self.fetch_digest(weight_path)
-            logger.debug("loaded model digest = %s" % (self.digest))
+            with FileLock(config_path+'.lock'):
+                with open(config_path, "rt") as f:
+                    self.model = Model.from_config(json.load(f))
+            with FileLock(weight_path+'.lock'):
+                self.model.load_weights(weight_path)
+                self.model._make_predict_function()
+                self.digest = self.fetch_digest(weight_path)
+                logger.debug("loaded model digest = %s" % (self.digest))
             return True
         else:
             logger.debug("model files does not exist at %s and %s" % (config_path, weight_path))
@@ -142,14 +145,16 @@ class ChessModel:
     def save(self, config_path, weight_path):
         logger.debug("saving model to %s" % (config_path))
         print('debug-3')
-        with open(config_path, "wt") as f:
-            print('debug-2')
-            json.dump(self.model.get_config(), f)
-            print('debug-1')
+        with FileLock(config_path+'.lock'):
+            with open(config_path, "wt") as f:
+                print('debug-2')
+                json.dump(self.model.get_config(), f)
+                print('debug-1')
+        with FileLock(weight_path+'.lock'):
             self.model.save_weights(weight_path)
             print('debug-0')
-        self.digest = self.fetch_digest(weight_path)
-        logger.debug("saved model digest %s" % (self.digest))
+            self.digest = self.fetch_digest(weight_path)
+            logger.debug("saved model digest %s" % (self.digest))
 
         print('debug')
 

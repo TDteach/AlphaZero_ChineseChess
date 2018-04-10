@@ -49,3 +49,5 @@ class ChessModelAPI:
                     tt = list()
                     i = i+1
                     k = 0
+            if k > 0:
+                print('bug bug bug !!!')

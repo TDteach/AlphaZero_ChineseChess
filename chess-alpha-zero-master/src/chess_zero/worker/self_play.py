@@ -141,8 +141,8 @@ def self_play_buffer(config, cur) -> (tuple, list):
         if state in history[:-1]:
             no_act = []
             for i in range(len(history)-1):
-                if history[-i] == state:
-                    no_act.append(history[-i+1])
+                if history[i] == state:
+                    no_act.append(history[i+1])
         action, policy = player.action(state, steps, no_act)
         policys.append(policy)
         history.append(action)
@@ -150,7 +150,8 @@ def self_play_buffer(config, cur) -> (tuple, list):
         steps += 1
         history.append(state)
         if steps >= config.play.max_game_length:
-            v = env.testeval(state)
+            # v = env.testeval(state)
+            v = 0
             break
         else:
             v = env.game_over(state)
