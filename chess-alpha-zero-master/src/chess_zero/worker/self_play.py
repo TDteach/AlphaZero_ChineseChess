@@ -150,7 +150,8 @@ def self_play_buffer(config, cur) -> (tuple, list):
         steps += 1
         history.append(state)
         if steps >= config.play.max_game_length:
-            v = env.testeval(state)
+            # v = env.testeval(state)
+            v = 0
             break
         else:
             v = env.game_over(state)

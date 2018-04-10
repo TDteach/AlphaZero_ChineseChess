@@ -186,7 +186,8 @@ def play_game(config, cur, ng, current_white: bool) -> (float, bool):
         state = env.step(state, action)
         steps += 1
         if steps >= config.eval.max_game_length:
-            v = env.testeval(state)
+            # v = env.testeval(state)
+            v = 0
             break
         else:
             v = env.game_over(state)

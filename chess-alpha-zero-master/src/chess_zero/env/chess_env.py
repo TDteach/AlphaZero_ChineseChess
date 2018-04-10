@@ -38,7 +38,8 @@ def testeval(state) -> float:
             ans -= piece_vals[c.lower()]
             tot += piece_vals[c.lower()]
     v = ans/tot
-    return np.tanh(v * 3) # arbitrary
+    return 0
+    #return np.tanh(v * 3) # arbitrary
 
 
 def canon_input_planes(state):
